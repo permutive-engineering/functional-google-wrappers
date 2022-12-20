@@ -24,13 +24,14 @@ val MunitCE3 = "1.0.7"
 val ScalacheckEffect = "1.0.4"
 
 val Scala213 = "2.13.10"
-ThisBuild / crossScalaVersions := Seq("2.13.14", Scala213, "3.1.2")
+ThisBuild / crossScalaVersions := Seq("2.12.14", Scala213, "3.2.1")
 ThisBuild / scalaVersion := Scala213 // the default Scala
 
-lazy val root = tlCrossRootProject.aggregate(functionalGax)
+lazy val root =
+  tlCrossRootProject
+    .aggregate(functionalGax, testkitMunitBigtable)
 
-lazy val functionalGax = crossProject(JVMPlatform)
-  .crossType(CrossType.Pure)
+lazy val functionalGax = project
   .in(file("functional-gax"))
   .settings(
     name := "functional-gax",
@@ -39,13 +40,38 @@ lazy val functionalGax = crossProject(JVMPlatform)
       "org.typelevel" %%% "cats-effect-std" % CatsEffect,
       "co.fs2" %%% "fs2-core" % "3.2.14",
       "com.google.api" % "gax" % "2.20.1",
-      "org.typelevel" %%% "cats-effect" % CatsEffect % "test,it",
+      "org.typelevel" %%% "cats-effect" % CatsEffect % Test,
       "org.typelevel" %% "cats-effect-testkit" % CatsEffect % Test,
       "org.scalameta" %%% "munit" % Munit % Test,
       "org.typelevel" %%% "munit-cats-effect-3" % MunitCE3 % Test,
-      "org.typelevel" %%% "scalacheck-effect-munit" % ScalacheckEffect % Test,
-      "com.google.cloud" % "google-cloud-bigtable" % "2.17.1" % IntegrationTest,
-      "com.google.cloud" % "google-cloud-bigtable-emulator" % "0.154.1" % IntegrationTest
-    )
+      "org.typelevel" %%% "scalacheck-effect-munit" % ScalacheckEffect % Test
+    ),
+    libraryDependencies ++= PartialFunction
+      .condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
+        case Some((2, 12)) =>
+          "org.scala-lang.modules" %% "scala-collection-compat" % "2.8.1" % Test
+      }
+      .toList
   )
-  .configs(IntegrationTest)
+  .dependsOn(testkitMunitBigtable % "test->compile")
+
+lazy val testkitMunitBigtable = project
+  .in(file("testkit-munit-bigtable"))
+  .settings(
+    name := "testkit-munit-bigtable",
+    libraryDependencies ++= Seq(
+      "org.typelevel" %%% "cats-core" % Cats,
+      "org.typelevel" %%% "cats-effect" % CatsEffect,
+      "org.typelevel" %% "cats-effect-testkit" % CatsEffect,
+      "org.scalameta" %%% "munit" % Munit,
+      "org.typelevel" %%% "munit-cats-effect-3" % MunitCE3,
+      "com.google.cloud" % "google-cloud-bigtable" % "2.17.1",
+      "com.google.cloud" % "google-cloud-bigtable-emulator" % "0.154.1"
+    ),
+    libraryDependencies ++= PartialFunction
+      .condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
+        case Some((2, 12)) =>
+          "org.scala-lang.modules" %% "scala-collection-compat" % "2.8.1" % Test
+      }
+      .toList
+  )

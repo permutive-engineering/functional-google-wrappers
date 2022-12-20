@@ -1,8 +1,23 @@
+/*
+ * Copyright 2022 Permutive
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.permutive.google.gax
 
 import cats.data.{Kleisli, NonEmptyMap, NonEmptySet}
 import cats.effect.{IO, Resource}
-import cats.syntax.all._
 import com.google.api.core.ApiFuture
 import com.google.api.gax.batching.Batcher
 import com.google.api.gax.rpc.ServerStream
@@ -16,9 +31,10 @@ import scala.jdk.CollectionConverters._
 class FunctionalGaxSpec extends BigtableSuite {
 
   val testTable = "test-table"
-  val family    = "d"
+  val family = "d"
 
-  override def tablesAndColumnFamilies: NonEmptyMap[String, NonEmptySet[String]] =
+  override def tablesAndColumnFamilies
+      : NonEmptyMap[String, NonEmptySet[String]] =
     NonEmptyMap.one("test-table", NonEmptySet.one(family))
 
   lazy val sut = FunctionalGax.impl[IO]
@@ -35,10 +51,12 @@ class FunctionalGaxSpec extends BigtableSuite {
     checkConvertSuspends(FunctionalGax.convertApiFuture)
   }
 
-  def checkConvertSuspends(convertApiFuture: IO[ApiFuture[Void]] => IO[Void]): IO[Unit] = {
-    val key       = "foo"
+  def checkConvertSuspends(
+      convertApiFuture: IO[ApiFuture[Void]] => IO[Void]
+  ): IO[Unit] = {
+    val key = "foo"
     val qualifier = "bar"
-    val data      = "baz"
+    val data = "baz"
 
     for {
       // Insert row and check exists
@@ -55,21 +73,29 @@ class FunctionalGaxSpec extends BigtableSuite {
     } yield ()
   }
 
-  test("FunctionalGax.convertServerStream should return the correct results (interface)") {
+  test(
+    "FunctionalGax.convertServerStream should return the correct results (interface)"
+  ) {
     checkServerStreamConverts(sut.convertServerStream(_, chunkSize = 128))
   }
 
-  test("FunctionalGax.convertServerStream should return the correct results (companion object)") {
-    checkServerStreamConverts(FunctionalGax.convertServerStream(_, chunkSize = 128))
+  test(
+    "FunctionalGax.convertServerStream should return the correct results (companion object)"
+  ) {
+    checkServerStreamConverts(
+      FunctionalGax.convertServerStream(_, chunkSize = 128)
+    )
   }
 
-  def checkServerStreamConverts(convertServerStream: IO[ServerStream[Row]] => Stream[IO, Row]): IO[Unit] = {
+  def checkServerStreamConverts(
+      convertServerStream: IO[ServerStream[Row]] => Stream[IO, Row]
+  ): IO[Unit] = {
     val key1 = "key-1"
     val key2 = "key-2"
     val key3 = "key-3"
 
     val qualifier = "foo"
-    val data      = "bar"
+    val data = "bar"
 
     for {
       // Insert data and verify present
@@ -79,7 +105,9 @@ class FunctionalGaxSpec extends BigtableSuite {
       _ <- assertIOBoolean(existsSync(key1))
       _ <- assertIOBoolean(existsSync(key2))
       _ <- assertIOBoolean(existsSync(key3))
-      read = convertServerStream(IO(bigtableDataClient.readRows(Query.create(testTable))))
+      read = convertServerStream(
+        IO(bigtableDataClient.readRows(Query.create(testTable)))
+      )
       res <- read.compile.toList
     } yield {
       assertEquals(res.size, 3, res)
@@ -100,16 +128,23 @@ class FunctionalGaxSpec extends BigtableSuite {
 
   // This was mostly excercised in unit tests already, these are just integration tests
 
-  test("FunctionalGax.convertBatcher batch as expected and flush on closing (interface)") {
+  test(
+    "FunctionalGax.convertBatcher batch as expected and flush on closing (interface)"
+  ) {
     checkBatcherWorks(sut.convertBatcher)
   }
 
-  test("FunctionalGax.convertBatcher batch as expected and flush on closing (companion object)") {
+  test(
+    "FunctionalGax.convertBatcher batch as expected and flush on closing (companion object)"
+  ) {
     checkBatcherWorks(FunctionalGax.convertBatcher)
   }
 
   def checkBatcherWorks(
-    convertBatcher: IO[Batcher[RowMutationEntry, Void]] => Resource[IO, Kleisli[IO, RowMutationEntry, IO[Void]]]
+      convertBatcher: IO[Batcher[RowMutationEntry, Void]] => Resource[
+        IO,
+        Kleisli[IO, RowMutationEntry, IO[Void]]
+      ]
   ): IO[Unit] = {
     val key1 = "key-1"
     val key2 = "key-2"
@@ -117,9 +152,11 @@ class FunctionalGaxSpec extends BigtableSuite {
     val key4 = "key-3"
 
     val qualifier = "foo"
-    val data      = "bar"
+    val data = "bar"
 
-    convertBatcher(IO.delay(bigtableDataClient.newBulkMutationBatcher(testTable)))
+    convertBatcher(
+      IO.delay(bigtableDataClient.newBulkMutationBatcher(testTable))
+    )
       .use { batcher =>
         for {
           // Insert data and verify present
@@ -136,10 +173,10 @@ class FunctionalGaxSpec extends BigtableSuite {
           _ <- assertIOBoolean(notExistsSync(key1))
           // Start a second deletion, check row still is there. This is a race so may be flaky!
           await <- deleteRowBatcher(key2, batcher)
-          _     <- assertIOBoolean(existsSync(key2))
+          _ <- assertIOBoolean(existsSync(key2))
           // Start a third deletion, this _should_ batch with the first. Should also still exist immediately after
           await2 <- deleteRowBatcher(key3, batcher)
-          _      <- assertIOBoolean(existsSync(key3))
+          _ <- assertIOBoolean(existsSync(key3))
           // Waiting for the third completion should mean both final rows are now gone
           _ <- await2
           _ <- assertIOBoolean(notExistsSync(key2))
@@ -150,11 +187,17 @@ class FunctionalGaxSpec extends BigtableSuite {
           _ <- deleteRowBatcher(key4, batcher).void
         } yield ()
       }
-      .flatMap(_ => assertIOBoolean(notExistsSync(key4))) // Check key 4 now gone
+      .flatMap(_ =>
+        assertIOBoolean(notExistsSync(key4))
+      ) // Check key 4 now gone
   }
 
-  def deleteRowBatcher(key: String, batcher: Kleisli[IO, RowMutationEntry, IO[Void]]): IO[IO[Unit]] =
-    IO(RowMutationEntry.create(key).deleteRow()).flatMap(batcher.run(_).map(_.void))
+  def deleteRowBatcher(
+      key: String,
+      batcher: Kleisli[IO, RowMutationEntry, IO[Void]]
+  ): IO[IO[Unit]] =
+    IO(RowMutationEntry.create(key).deleteRow())
+      .flatMap(batcher.run(_).map(_.void))
 
   def writeRowSync(key: String, qualifier: String, data: String): IO[Unit] =
     IO.delay(bigtableDataClient.mutateRow(writeMutation(key, qualifier, data)))
@@ -169,7 +212,11 @@ class FunctionalGaxSpec extends BigtableSuite {
     existsSync(key).map(!_)
 
   def writeMutation(key: String, qualifier: String, data: String): RowMutation =
-    RowMutation.create(testTable, key, Mutation.create().setCell(family, qualifier, data))
+    RowMutation.create(
+      testTable,
+      key,
+      Mutation.create().setCell(family, qualifier, data)
+    )
 
   def deleteRowMutation(key: String): RowMutation =
     RowMutation.create(testTable, key, Mutation.create().deleteRow())

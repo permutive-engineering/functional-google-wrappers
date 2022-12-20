@@ -42,7 +42,7 @@ class KleisliBatcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
   ) {
     val mirrorResources = resources[Int, Int](1, _.pure[IO])
 
-    forAllF { i: Int =>
+    forAllF { (i: Int) =>
       TestControl.executeEmbed(mirrorResources.use { case (_, sut) =>
         assertIO(sut.run(i).flatten, i)
       })
@@ -100,11 +100,11 @@ class KleisliBatcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
   val resourcesInnerSleepCompleteDeferred =
     for {
       deferred <- Resource.eval(Deferred[IO, Unit])
-      (tb, sut) <- resources[Unit, Unit](
+      res <- resources[Unit, Unit](
         1,
         _ => IO.sleep(5.seconds) >> deferred.complete(()).void
       )
-    } yield (deferred, tb, sut)
+    } yield (deferred, res._1, res._2)
 
   test(
     "FunctionalGax.fromSuspendedBatcher(_).run should not block waiting for inner effect to complete (evaluating inner effect)"
