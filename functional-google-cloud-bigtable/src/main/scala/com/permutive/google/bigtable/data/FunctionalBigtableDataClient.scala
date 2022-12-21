@@ -55,9 +55,8 @@ import scala.jdk.CollectionConverters._
   *   `BigtableDataClient` (as that is a Java class). Instead links just go to
   *   documentation for the class, with the correct method name as the text.
   */
-sealed abstract class FunctionalBigtableDataClient[F[_]: Sync] private (
-    dataClient: JBigtableDataClient,
-    functionalGax: FunctionalGax[F]
+sealed abstract class FunctionalBigtableDataClient[F[_]: Async] private (
+    dataClient: JBigtableDataClient
 ) {
 
   /** Type alias to make intentions clearer in `FunctionalBatcher` */
@@ -295,18 +294,18 @@ sealed abstract class FunctionalBigtableDataClient[F[_]: Sync] private (
     delayConvert(dataClient.readModifyWriteRowAsync(mutation))
 
   private def delayConvert[A](a: => ApiFuture[A]): F[A] =
-    functionalGax.convertApiFuture(Sync[F].delay(a))
+    FunctionalGax.convertApiFuture(Sync[F].delay(a))
 
   private def delayStream[A](
       a: => ServerStream[A],
       chunkSize: Int
   ): Stream[F, A] =
-    functionalGax.convertServerStream(Sync[F].delay(a), chunkSize)
+    FunctionalGax.convertServerStream(Sync[F].delay(a), chunkSize)
 
   private def delayBatcher[A, B](
       a: => Batcher[A, B]
   ): Resource[F, FunctionalBatcher[F, A, B]] =
-    functionalGax.convertBatcher(Sync[F].delay(a))
+    FunctionalGax.convertBatcher(Sync[F].delay(a))
 }
 
 object FunctionalBigtableDataClient {
@@ -317,24 +316,7 @@ object FunctionalBigtableDataClient {
   def resource[F[_]: Async](
       dataClientSettings: BigtableDataClientSettings[F]
   ): Resource[F, FunctionalBigtableDataClient[F]] =
-    resource(dataClientSettings, FunctionalGax.impl)
-
-  /** Construct a [[FunctionalBigtableDataClient]] given the provided settings
-    * for the underlying client and `FunctionalGax`.
-    */
-  def resource[F[_]: Sync](
-      dataClientSettings: BigtableDataClientSettings[F],
-      functionalGax: FunctionalGax[F]
-  ): Resource[F, FunctionalBigtableDataClient[F]] =
-    BigtableDataClientResource(dataClientSettings).map(impl(_, functionalGax))
-
-  /** Implementation of [[FunctionalBigtableDataClient]] from an underlying Java
-    * client and `FunctionalGax`.
-    */
-  def impl[F[_]: Sync](
-      dataClient: JBigtableDataClient,
-      functionalGax: FunctionalGax[F]
-  ): FunctionalBigtableDataClient[F] =
-    new FunctionalBigtableDataClient[F](dataClient, functionalGax) {}
-
+    BigtableDataClientResource(dataClientSettings).map(
+      new FunctionalBigtableDataClient[F](_) {}
+    )
 }
