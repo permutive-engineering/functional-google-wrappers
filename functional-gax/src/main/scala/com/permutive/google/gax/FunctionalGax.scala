@@ -44,7 +44,7 @@ import scala.jdk.CollectionConverters._
   *   conversions. Underlying methods are publicly available in the companion
   *   object.
   */
-trait FunctionalGax[F[_]] {
+sealed abstract class FunctionalGax[F[_]: Async] {
 
   /** Lift an [[com.google.api.core.ApiFuture]] into the `F[_]` context.
     *
@@ -52,7 +52,8 @@ trait FunctionalGax[F[_]] {
     *   the [[com.google.api.core.ApiFuture]] to lift into the `F[_]` context.
     *   Suspended in `F[_]` to avoid eager evaluation
     */
-  def convertApiFuture[A](fut: F[ApiFuture[A]]): F[A]
+  def convertApiFuture[A](fut: F[ApiFuture[A]]): F[A] =
+    FunctionalGax.convertApiFuture(fut)
 
   /** Convert a [[com.google.api.gax.rpc.ServerStream]] to a [[fs2.Stream]] in
     * the `F[_]` context.
@@ -66,7 +67,7 @@ trait FunctionalGax[F[_]] {
   def convertServerStream[A](
       serverStream: F[ServerStream[A]],
       chunkSize: Int
-  ): Stream[F, A]
+  ): Stream[F, A] = FunctionalGax.convertServerStream(serverStream, chunkSize)
 
   /** Convert a [[com.google.api.gax.batching.Batcher]] into a functional
     * equivalent, represented as a [[cats.data.Kleisli Kleisli]].
@@ -95,7 +96,8 @@ trait FunctionalGax[F[_]] {
     */
   def convertBatcher[Input, Result](
       batcher: F[Batcher[Input, Result]]
-  ): Resource[F, FunctionalBatcher[F, Input, Result]]
+  ): Resource[F, FunctionalBatcher[F, Input, Result]] =
+    FunctionalGax.convertBatcher(batcher)
 }
 
 object FunctionalGax {
@@ -113,19 +115,7 @@ object FunctionalGax {
     *
     * Delegates to public methods in companion object.
     */
-  def impl[F[_]: Async]: FunctionalGax[F] = new FunctionalGax[F] {
-    override def convertApiFuture[A](fut: F[ApiFuture[A]]) =
-      FunctionalGax.convertApiFuture(fut)
-    override def convertServerStream[A](
-        serverStream: F[ServerStream[A]],
-        chunkSize: Int
-    ) =
-      FunctionalGax.convertServerStream(serverStream, chunkSize)
-    override def convertBatcher[Input, Result](
-        batcher: F[Batcher[Input, Result]]
-    ) =
-      FunctionalGax.convertBatcher(batcher)
-  }
+  def impl[F[_]: Async]: FunctionalGax[F] = new FunctionalGax[F] {}
 
   /** Lift an [[com.google.api.core.ApiFuture]] into the `F[_]` context.
     *

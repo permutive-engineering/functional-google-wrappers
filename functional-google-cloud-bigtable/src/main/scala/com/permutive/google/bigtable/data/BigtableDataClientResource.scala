@@ -48,12 +48,12 @@ object BigtableDataClientResource {
   ): Resource[F, JBigtableDataClient] =
     Resource.fromAutoCloseable(for {
       builder <- Sync[F].delay(settings.endpoint match {
-        case Some(EndpointSettings(host, port, isEmulator)) =>
-          if (isEmulator) {
-            BigtableDataSettings.newBuilderForEmulator(host, port.value)
+        case Some(s) =>
+          if (s.isEmulator) {
+            BigtableDataSettings.newBuilderForEmulator(s.host, s.port.value)
           } else {
             val b = BigtableDataSettings.newBuilder()
-            b.stubSettings().setEndpoint(s"$host:$port")
+            b.stubSettings().setEndpoint(s"${s.host}:${s.port.value}")
             b
           }
         case None => BigtableDataSettings.newBuilder()
@@ -77,12 +77,12 @@ object BigtableDataClientResource {
           .pipe { builder =>
             settings.endpoint match {
               // If the endpoint is an emulator do not apply the old channel provider settings
-              case Some(EndpointSettings(_, _, true)) =>
-                settings.modifySettings
+              case Some(s) if s.isEmulator =>
+                settings.settingsModifier
                   .fold(Applicative[F].pure(builder))(_(builder))
               // In any other situation apply the old channel provider settings as long as the user has not provided their own
               case _ =>
-                settings.modifySettings.getOrElse(
+                settings.settingsModifier.getOrElse(
                   BigtableDataClientSettings.oldChannelProviderSettings
                 )(builder)
             }

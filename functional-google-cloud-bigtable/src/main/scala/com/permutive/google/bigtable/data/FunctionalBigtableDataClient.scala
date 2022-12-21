@@ -55,7 +55,10 @@ import scala.jdk.CollectionConverters._
   *   `BigtableDataClient` (as that is a Java class). Instead links just go to
   *   documentation for the class, with the correct method name as the text.
   */
-trait FunctionalBigtableDataClient[F[_]] {
+sealed abstract class FunctionalBigtableDataClient[F[_]: Sync] private (
+    dataClient: JBigtableDataClient,
+    functionalGax: FunctionalGax[F]
+) {
 
   /** Type alias to make intentions clearer in `FunctionalBatcher` */
   type RowKeyByteString = ByteString
@@ -65,14 +68,20 @@ trait FunctionalBigtableDataClient[F[_]] {
     * @see
     *   [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient#exists]]
     */
-  def exists(tableId: String, rowKey: String): F[Boolean]
+  def exists(tableId: String, rowKey: String): F[Boolean] =
+    delayConvert(dataClient.existsAsync(tableId, rowKey))
+      // Convert Java => Scala, doesn't "just work" unfortunately
+      .map(b => b)
 
   /** Checks if a given row exists or not.
     *
     * @see
     *   [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient#exists]]
     */
-  def exists(tableId: String, rowKey: ByteString): F[Boolean]
+  def exists(tableId: String, rowKey: ByteString): F[Boolean] =
+    delayConvert(dataClient.existsAsync(tableId, rowKey))
+      // Convert Java => Scala, doesn't "just work" unfortunately
+      .map(b => b)
 
   /** Read a single row with an optional filter.
     *
@@ -86,7 +95,10 @@ trait FunctionalBigtableDataClient[F[_]] {
       tableId: String,
       rowKey: String,
       filter: Option[Filter]
-  ): F[Option[Row]]
+  ): F[Option[Row]] =
+    delayConvert(dataClient.readRowAsync(tableId, rowKey, filter.orNull))
+      // Result can be null
+      .map(Option(_))
 
   /** Read a single row with an optional filter.
     *
@@ -100,7 +112,10 @@ trait FunctionalBigtableDataClient[F[_]] {
       tableId: String,
       rowKey: ByteString,
       filter: Option[Filter]
-  ): F[Option[Row]]
+  ): F[Option[Row]] =
+    delayConvert(dataClient.readRowAsync(tableId, rowKey, filter.orNull))
+      // Result can be null
+      .map(Option(_))
 
   /** Stream a series of result rows from the provided query.
     *
@@ -110,7 +125,8 @@ trait FunctionalBigtableDataClient[F[_]] {
     * @see
     *   [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient#readRows]]
     */
-  def readRows(query: Query, streamChunkSize: Int): Stream[F, Row]
+  def readRows(query: Query, streamChunkSize: Int): Stream[F, Row] =
+    delayStream(dataClient.readRows(query), streamChunkSize)
 
   /** Sample the row keys present in the table. Returned keys delimit contiguous
     * sections, approximately equal in size.
@@ -123,14 +139,18 @@ trait FunctionalBigtableDataClient[F[_]] {
     *   collection to return which wraps the underlying Java list; other
     *   collections iterate to construct.
     */
-  def sampleRowKeys(tableId: String): F[Chunk[KeyOffset]]
+  def sampleRowKeys(tableId: String): F[Chunk[KeyOffset]] =
+    delayConvert(dataClient.sampleRowKeysAsync(tableId)).map(jList =>
+      Chunk.iterable(jList.asScala)
+    )
 
   /** Mutate a single row atomically.
     *
     * @see
     *   [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient#mutateRow]]
     */
-  def mutateRow(rowMutation: RowMutation): F[Unit]
+  def mutateRow(rowMutation: RowMutation): F[Unit] =
+    delayConvert(dataClient.mutateRowAsync(rowMutation)).void
 
   /** Mutate multiple rows in a batch. Each individual row is mutated
     * atomically.
@@ -138,7 +158,8 @@ trait FunctionalBigtableDataClient[F[_]] {
     * @see
     *   [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient#bulkMutateRows]]
     */
-  def bulkMutateRows(bulkMutation: BulkMutation): F[Unit]
+  def bulkMutateRows(bulkMutation: BulkMutation): F[Unit] =
+    delayConvert(dataClient.bulkMutateRowsAsync(bulkMutation)).void
 
   /** Create a `FunctionalBatcher` which mutates multiple rows in a batch. Each
     * individual row is mutated atomically.
@@ -153,9 +174,9 @@ trait FunctionalBigtableDataClient[F[_]] {
     *
     * ==Configuring batching==
     * Configuration of this batching is controlled by
-    * [[BigtableDataClientSettings.mutateRowsBatchingSettings]]. Note that this
-    * is at the point this interface is constructed, not whenever this method is
-    * called.
+    * [[BigtableDataClientSettings]]'s `mutateRowsBatchingSettings` method. Note
+    * that this is at the point this interface is constructed, not whenever this
+    * method is called.
     *
     * Default settings are visible in the docstring of
     * [[https://googleapis.dev/java/google-cloud-bigtable/latest/com/google/cloud/bigtable/data/v2/stub/EnhancedBigtableStubSettings.html#bulkMutateRowsSettings-- BigtableDataSettings.getStubSettings.bulkMutateRowsSettings()]]
@@ -180,16 +201,21 @@ trait FunctionalBigtableDataClient[F[_]] {
     *   may be useful as well. It dynamically alters the number of in-flight
     *   requests to achieve a target RPC latency. To use this setting you will
     *   manually need to set it in
-    *   [[BigtableDataClientSettings.modifySettings]]. Note that this (I think!)
-    *   does not affect batching thresholds at all; instead it only affects the
-    *   number of in-flight requests allowed to target a certain latency _after_
-    *   a batching threshold has been reached. I may be wrong though, these
-    *   settings are very hard to understand...
+    *   [[BigtableDataClientSettings!.settingsModifier]]. Note that this (I
+    *   think!) does not affect batching thresholds at all; instead it only
+    *   affects the number of in-flight requests allowed to target a certain
+    *   latency _after_ a batching threshold has been reached. I may be wrong
+    *   though, these settings are very hard to understand...
     */
   def bulkMutateRowsBatcher(
       tableId: String,
       grpcCallContext: Option[GrpcCallContext] = None
-  ): Resource[F, FunctionalBatcher[F, RowMutationEntry, Unit]]
+  ): Resource[F, FunctionalBatcher[F, RowMutationEntry, Unit]] =
+    delayBatcher(
+      dataClient.newBulkMutationBatcher(tableId, grpcCallContext.orNull)
+    )
+      // We need to define a new batcher to convert the Java `void` to a unit
+      .map(_.map(_.void))
 
   /** Create a `FunctionalBatcher` which reads multiple rows, with an optional
     * filter, in a batch.
@@ -207,9 +233,9 @@ trait FunctionalBigtableDataClient[F[_]] {
     *
     * ==Configuring batching==
     * Configuration of this batching is controlled by
-    * [[BigtableDataClientSettings.readRowsBatchingSettings]].Note that this is
-    * at the point this interface is constructed, not whenever this method is
-    * called.
+    * [[com.permutive.google.bigtable.data.BigtableDataClientSettings.readRowsBatchingSettings]].Note
+    * that this is at the point this interface is constructed, not whenever this
+    * method is called.
     *
     * Default settings are visible in the docstring of
     * [[https://googleapis.dev/java/google-cloud-bigtable/latest/com/google/cloud/bigtable/data/v2/stub/EnhancedBigtableStubSettings.html#bulkReadRowsSettings-- BigtableDataSettings.getStubSettings.bulkReadRowsSettings()]]
@@ -233,14 +259,28 @@ trait FunctionalBigtableDataClient[F[_]] {
       tableId: String,
       filter: Option[Filter],
       grpcCallContext: Option[GrpcCallContext] = None
-  ): Resource[F, FunctionalBatcher[F, RowKeyByteString, Option[Row]]]
+  ): Resource[F, FunctionalBatcher[F, RowKeyByteString, Option[Row]]] =
+    delayBatcher(
+      dataClient.newBulkReadRowsBatcher(
+        tableId,
+        filter.orNull,
+        grpcCallContext.orNull
+      )
+    )
+      // We need to define a new batcher to handle the case where the row returned is null
+      .map(_.map(_.map(Option(_))))
 
   /** Mutate a row atomically based on the output of a filter.
     *
     * @see
     *   [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient#checkAndMutateRow]]
     */
-  def checkAndMutateRow(mutation: ConditionalRowMutation): F[Boolean]
+  def checkAndMutateRow(
+      mutation: ConditionalRowMutation
+  ): F[Boolean] =
+    delayConvert(dataClient.checkAndMutateRowAsync(mutation))
+      // Convert Java Boolean => Scala, doesn't "just work" unfortunately
+      .map(b => b)
 
   /** Modify a row atomically on the server based on its current value. Returns
     * the new contents of all modified cells.
@@ -248,8 +288,25 @@ trait FunctionalBigtableDataClient[F[_]] {
     * @see
     *   [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient#readModifyWriteRow]]
     */
-  def readModifyWriteRow(mutation: ReadModifyWriteRow): F[Row]
+  def readModifyWriteRow(mutation: ReadModifyWriteRow): F[Row] =
+    // [Ben: 2020-06-17] Underlying method does _not_ state the response can be null. It says it returns "the new
+    // contents of all modified cells".
+    // Chasing the code a bit it seems to fill a default stub row if no changes were made
+    delayConvert(dataClient.readModifyWriteRowAsync(mutation))
 
+  private def delayConvert[A](a: => ApiFuture[A]): F[A] =
+    functionalGax.convertApiFuture(Sync[F].delay(a))
+
+  private def delayStream[A](
+      a: => ServerStream[A],
+      chunkSize: Int
+  ): Stream[F, A] =
+    functionalGax.convertServerStream(Sync[F].delay(a), chunkSize)
+
+  private def delayBatcher[A, B](
+      a: => Batcher[A, B]
+  ): Resource[F, FunctionalBatcher[F, A, B]] =
+    functionalGax.convertBatcher(Sync[F].delay(a))
 }
 
 object FunctionalBigtableDataClient {
@@ -278,104 +335,6 @@ object FunctionalBigtableDataClient {
       dataClient: JBigtableDataClient,
       functionalGax: FunctionalGax[F]
   ): FunctionalBigtableDataClient[F] =
-    new FunctionalBigtableDataClient[F] {
-
-      override def exists(tableId: String, rowKey: String): F[Boolean] =
-        delayConvert(dataClient.existsAsync(tableId, rowKey))
-          // Convert Java => Scala, doesn't "just work" unfortunately
-          .map(b => b)
-
-      override def exists(tableId: String, rowKey: ByteString): F[Boolean] =
-        delayConvert(dataClient.existsAsync(tableId, rowKey))
-          // Convert Java => Scala, doesn't "just work" unfortunately
-          .map(b => b)
-
-      override def readRow(
-          tableId: String,
-          rowKey: String,
-          filter: Option[Filter]
-      ): F[Option[Row]] =
-        delayConvert(dataClient.readRowAsync(tableId, rowKey, filter.orNull))
-          // Result can be null
-          .map(Option(_))
-
-      override def readRow(
-          tableId: String,
-          rowKey: ByteString,
-          filter: Option[Filter]
-      ): F[Option[Row]] =
-        delayConvert(dataClient.readRowAsync(tableId, rowKey, filter.orNull))
-          // Result can be null
-          .map(Option(_))
-
-      override def readRows(
-          query: Query,
-          streamChunkSize: Int
-      ): Stream[F, Row] =
-        delayStream(dataClient.readRows(query), streamChunkSize)
-
-      override def sampleRowKeys(tableId: String): F[Chunk[KeyOffset]] =
-        delayConvert(dataClient.sampleRowKeysAsync(tableId)).map(jList =>
-          Chunk.iterable(jList.asScala)
-        )
-
-      override def mutateRow(rowMutation: RowMutation): F[Unit] =
-        delayConvert(dataClient.mutateRowAsync(rowMutation)).void
-
-      override def bulkMutateRows(bulkMutation: BulkMutation): F[Unit] =
-        delayConvert(dataClient.bulkMutateRowsAsync(bulkMutation)).void
-
-      override def bulkMutateRowsBatcher(
-          tableId: String,
-          grpcCallContext: Option[GrpcCallContext] = None
-      ): Resource[F, FunctionalBatcher[F, RowMutationEntry, Unit]] =
-        delayBatcher(
-          dataClient.newBulkMutationBatcher(tableId, grpcCallContext.orNull)
-        )
-          // We need to define a new batcher to convert the Java `void` to a unit
-          .map(_.map(_.void))
-
-      override def bulkReadRowsBatcher(
-          tableId: String,
-          filter: Option[Filter],
-          grpcCallContext: Option[GrpcCallContext] = None
-      ): Resource[F, FunctionalBatcher[F, RowKeyByteString, Option[Row]]] =
-        delayBatcher(
-          dataClient.newBulkReadRowsBatcher(
-            tableId,
-            filter.orNull,
-            grpcCallContext.orNull
-          )
-        )
-          // We need to define a new batcher to handle the case where the row returned is null
-          .map(_.map(_.map(Option(_))))
-
-      override def checkAndMutateRow(
-          mutation: ConditionalRowMutation
-      ): F[Boolean] =
-        delayConvert(dataClient.checkAndMutateRowAsync(mutation))
-          // Convert Java Boolean => Scala, doesn't "just work" unfortunately
-          .map(b => b)
-
-      override def readModifyWriteRow(mutation: ReadModifyWriteRow): F[Row] =
-        // [Ben: 2020-06-17] Underlying method does _not_ state the response can be null. It says it returns "the new
-        // contents of all modified cells".
-        // Chasing the code a bit it seems to fill a default stub row if no changes were made
-        delayConvert(dataClient.readModifyWriteRowAsync(mutation))
-
-      private def delayConvert[A](a: => ApiFuture[A]): F[A] =
-        functionalGax.convertApiFuture(Sync[F].delay(a))
-
-      private def delayStream[A](
-          a: => ServerStream[A],
-          chunkSize: Int
-      ): Stream[F, A] =
-        functionalGax.convertServerStream(Sync[F].delay(a), chunkSize)
-
-      private def delayBatcher[A, B](
-          a: => Batcher[A, B]
-      ): Resource[F, FunctionalBatcher[F, A, B]] =
-        functionalGax.convertBatcher(Sync[F].delay(a))
-    }
+    new FunctionalBigtableDataClient[F](dataClient, functionalGax) {}
 
 }
