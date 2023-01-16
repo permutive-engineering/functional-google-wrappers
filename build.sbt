@@ -70,7 +70,7 @@ lazy val functionalGoogleCloudBigtable = project
       "org.typelevel" %%% "cats-effect-std" % CatsEffect,
       "com.google.cloud" % "google-cloud-bigtable" % Bigtable,
       "com.comcast" %%% "ip4s-core" % "3.2.0",
-      "com.permutive" %%% "gcp-types" % "0.0-4995606-SNAPSHOT",
+      "com.permutive" %%% "gcp-types" % "1.0.0-RC1",
       "org.typelevel" %%% "cats-effect" % CatsEffect % Test,
       "org.typelevel" %%% "cats-effect-testkit" % CatsEffect % Test,
       "org.scalameta" %%% "munit" % Munit % Test,
