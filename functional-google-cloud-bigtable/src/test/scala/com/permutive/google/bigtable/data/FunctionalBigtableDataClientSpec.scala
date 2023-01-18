@@ -48,12 +48,11 @@ class FunctionalBigtableDataClientSpec extends BigtableSuite {
 
   lazy val config = BigtableDataClientSettings[IO](
     projectId = ProjectId.fromString(projectId).get,
-    instanceId = instanceId,
-    endpoint = Some(
-      EndpointSettings(
-        bigtableHost,
-        Port.fromInt(bigtablePort(bigtableEmulator)).get
-      )
+    instanceId = instanceId
+  ).withEndpoint(
+    EndpointSettings.emulator(
+      bigtableHost,
+      Port.fromInt(bigtablePort(bigtableEmulator)).get
     )
   )
 

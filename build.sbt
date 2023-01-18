@@ -55,7 +55,7 @@ lazy val functionalGax = project
     libraryDependencies ++= PartialFunction
       .condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
         case Some((2, 12)) =>
-          "org.scala-lang.modules" %% "scala-collection-compat" % "2.8.1" % Test
+          "org.scala-lang.modules" %%% "scala-collection-compat" % "2.8.1"
       }
       .toList
   )
@@ -70,7 +70,7 @@ lazy val functionalGoogleCloudBigtable = project
       "org.typelevel" %%% "cats-effect-std" % CatsEffect,
       "com.google.cloud" % "google-cloud-bigtable" % Bigtable,
       "com.comcast" %%% "ip4s-core" % "3.2.0",
-      "com.permutive" %%% "gcp-types" % "0.0-4995606-SNAPSHOT",
+      "com.permutive" %%% "gcp-types" % "1.0.0-RC1",
       "org.typelevel" %%% "cats-effect" % CatsEffect % Test,
       "org.typelevel" %%% "cats-effect-testkit" % CatsEffect % Test,
       "org.scalameta" %%% "munit" % Munit % Test,
@@ -80,7 +80,7 @@ lazy val functionalGoogleCloudBigtable = project
     libraryDependencies ++= PartialFunction
       .condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
         case Some((2, 12)) =>
-          "org.scala-lang.modules" %% "scala-collection-compat" % "2.8.1" % Test
+          "org.scala-lang.modules" %%% "scala-collection-compat" % "2.8.1" % Test
       }
       .toList
   )
@@ -102,7 +102,7 @@ lazy val testkitMunitBigtable = project
     libraryDependencies ++= PartialFunction
       .condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
         case Some((2, 12)) =>
-          "org.scala-lang.modules" %% "scala-collection-compat" % "2.8.1" % Test
+          "org.scala-lang.modules" %%% "scala-collection-compat" % "2.8.1" % Test
       }
       .toList
   )

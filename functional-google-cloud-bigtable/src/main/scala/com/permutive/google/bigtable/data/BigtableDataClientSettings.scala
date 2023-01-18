@@ -42,7 +42,7 @@ import scala.concurrent.duration.FiniteDuration
   *   optional settings to configure where the target Bigtable instance is
   *   located. If not supplied then live/real Bigtable will be used (hosted by
   *   Google)
-  * @param modifySettings
+  * @param settingsModifier
   *   optional settings to configure the underlying builder. If not supplied and
   *   the target instance is not an emulator then the
   *   [[BigtableDataClientSettings#oldChannelProviderSettings]] will be applied
@@ -61,17 +61,95 @@ import scala.concurrent.duration.FiniteDuration
   *   [[BatchingSettings]] and
   *   [[https://googleapis.dev/java/google-cloud-bigtable/latest/com/google/cloud/bigtable/data/v2/stub/EnhancedBigtableStubSettings.html#bulkMutateRowsSettings-- BigtableDataSettings.getStubSettings.bulkMutateRowsSettings()]]
   */
-case class BigtableDataClientSettings[F[_]](
-    projectId: ProjectId,
-    instanceId: String,
-    endpoint: Option[EndpointSettings] = None,
-    modifySettings: Option[
+sealed abstract class BigtableDataClientSettings[F[_]] private (
+    val projectId: ProjectId,
+    val instanceId: String,
+    val endpoint: Option[EndpointSettings],
+    val settingsModifier: Option[
       BigtableDataSettings.Builder => F[BigtableDataSettings.Builder]
-    ] = None,
-    applicationProfile: Option[String] = None,
-    readRowsBatchingSettings: Option[BatchingSettings] = None,
-    mutateRowsBatchingSettings: Option[BatchingSettings] = None
-)
+    ],
+    val applicationProfile: Option[String],
+    val readRowsBatchingSettings: Option[BatchingSettings],
+    val mutateRowsBatchingSettings: Option[BatchingSettings]
+) {
+  private def copy(
+      projectId: ProjectId = projectId,
+      instanceId: String = instanceId,
+      endpoint: Option[EndpointSettings] = endpoint,
+      settingsModifier: Option[
+        BigtableDataSettings.Builder => F[BigtableDataSettings.Builder]
+      ] = settingsModifier,
+      applicationProfile: Option[String] = applicationProfile,
+      readRowsBatchingSettings: Option[BatchingSettings] =
+        readRowsBatchingSettings,
+      mutateRowsBatchingSettings: Option[BatchingSettings] =
+        mutateRowsBatchingSettings
+  ): BigtableDataClientSettings[F] = new BigtableDataClientSettings[F](
+    projectId,
+    instanceId,
+    endpoint,
+    settingsModifier,
+    applicationProfile,
+    readRowsBatchingSettings,
+    mutateRowsBatchingSettings
+  ) {}
+
+  /** Provide optional endpoint configuration
+    * @param endpoint
+    *   [[EndpointSettings]] object
+    * @return
+    *   updated [[BigtableDataClientSettings]]
+    */
+  def withEndpoint(endpoint: EndpointSettings): BigtableDataClientSettings[F] =
+    copy(endpoint = Some(endpoint))
+
+  /** Provide a function to modify the underlying Java client settings
+    * @param f
+    *   function to modify settings, allowing for some side effect captured by
+    *   `F`
+    * @return
+    *   updated [[BigtableDataClientSettings]]
+    */
+  def modifySettings(
+      f: BigtableDataSettings.Builder => F[BigtableDataSettings.Builder]
+  ): BigtableDataClientSettings[F] = copy(settingsModifier = Some(f))
+
+  /** Provide an optional application profile that the client will identity
+    * itself with, requests will be handled according to that application
+    * profile
+    * @param applicationProfile
+    *   application profile name
+    * @return
+    *   updated [[BigtableDataClientSettings]]
+    */
+  def withApplicationProfile(
+      applicationProfile: String
+  ): BigtableDataClientSettings[F] =
+    copy(applicationProfile = Some(applicationProfile))
+
+  /** Provide optional settings for batching read operations.
+    * @param readRowsBatchingSettings
+    *   [[BatchingSettings]] object
+    * @return
+    *   updated [[BigtableDataClientSettings]]
+    */
+  def withReadRowsBatchingSettings(
+      readRowsBatchingSettings: BatchingSettings
+  ): BigtableDataClientSettings[F] =
+    copy(readRowsBatchingSettings = Some(readRowsBatchingSettings))
+
+  /** Provide optional settings for batching mutate operations.
+    *
+    * @param mutateRowsBatchingSettings
+    *   [[BatchingSettings]] object
+    * @return
+    *   updated [[BigtableDataClientSettings]]
+    */
+  def mutateRowsBatchingSettings(
+      mutateRowsBatchingSettings: BatchingSettings
+  ): BigtableDataClientSettings[F] =
+    copy(mutateRowsBatchingSettings = Some(mutateRowsBatchingSettings))
+}
 
 object BigtableDataClientSettings {
 
@@ -79,7 +157,7 @@ object BigtableDataClientSettings {
     * underling Java library before `1.16.0`.
     *
     * These setting are applied by default to all underlying clients unless
-    * [[BigtableDataClientSettings.modifySettings]] is specified.
+    * [[BigtableDataClientSettings.settingsModifier]] is specified.
     *
     * Version `1.16.0` introduced changes which led to `GOAWAY` being observed
     * in production. As a result these changes we "reverted" manually by us:
@@ -117,6 +195,28 @@ object BigtableDataClientSettings {
         }
       } yield updated
 
+  /** Create an instance of [[BigtableDataClientSettings]] with the required
+    * fields provided
+    *
+    * @param projectId
+    *   the target GCP project
+    * @param instanceId
+    *   the target Bigtable instance
+    * @return
+    *   a new instance of [[BigtableDataClientSettings]]
+    */
+  def apply[F[_]](
+      projectId: ProjectId,
+      instanceId: String
+  ): BigtableDataClientSettings[F] = new BigtableDataClientSettings[F](
+    projectId,
+    instanceId,
+    None,
+    None,
+    None,
+    None,
+    None
+  ) {}
 }
 
 /** Settings to configure the location of Bigtable, if live Bigtable is not
@@ -129,11 +229,37 @@ object BigtableDataClientSettings {
   * @param isEmulator
   *   whether the target Bigtable instance is an emulator nor not
   */
-case class EndpointSettings(
-    host: String,
-    port: Port,
-    isEmulator: Boolean = true
+sealed abstract class EndpointSettings private (
+    val host: String,
+    val port: Port,
+    val isEmulator: Boolean
 )
+
+object EndpointSettings {
+
+  /** Create a new [[EndpointSettings]] for a real Bigtable instance
+    * @param host
+    *   hostname of the instance
+    * @param port
+    *   port number of the instance
+    * @return
+    *   new [[EndpointSettings]] with `isEmulator` set to `false`
+    */
+  def apply(host: String, port: Port): EndpointSettings =
+    new EndpointSettings(host, port, isEmulator = false) {}
+
+  /** Create a new [[EndpointSettings]] for a Bigtable emulator
+    *
+    * @param host
+    *   hostname of the emulator
+    * @param port
+    *   port number of the emulator
+    * @return
+    *   new [[EndpointSettings]] with `isEmulator` set to `true`
+    */
+  def emulator(host: String, port: Port): EndpointSettings =
+    new EndpointSettings(host, port, isEmulator = true) {}
+}
 
 /** Settings to configure batching thresholds.
   *
@@ -170,9 +296,70 @@ case class EndpointSettings(
   *   threshold total number of queued elements to trigger a request. If not
   *   specified the default value is 100 elements for both read and mutate.
   */
-case class BatchingSettings(
-    enableBatching: Boolean,
-    requestByteThreshold: Option[Long],
-    delayThreshold: Option[FiniteDuration],
-    elementCountThreshold: Option[Long]
-)
+sealed abstract class BatchingSettings private (
+    val enableBatching: Boolean,
+    val requestByteThreshold: Option[Long],
+    val delayThreshold: Option[FiniteDuration],
+    val elementCountThreshold: Option[Long]
+) {
+  private def copy(
+      enableBatching: Boolean = enableBatching,
+      requestByteThreshold: Option[Long] = requestByteThreshold,
+      delayThreshold: Option[FiniteDuration] = delayThreshold,
+      elementCountThreshold: Option[Long] = elementCountThreshold
+  ) = new BatchingSettings(
+    enableBatching,
+    requestByteThreshold,
+    delayThreshold,
+    elementCountThreshold
+  ) {}
+
+  /** Add a request byte threshold to specify total number of bytes in queued
+    * elements to trigger a request
+    * @param requestByteThreshold
+    *   threshold
+    * @return
+    *   updated [[BatchingSettings]] instance
+    */
+  def withRequestByteThreshold(requestByteThreshold: Long): BatchingSettings =
+    copy(requestByteThreshold = Some(requestByteThreshold))
+
+  /** Add a delay threshold to specify delay after first element is queued to
+    * send a request.
+    * @param delayThreshold
+    *   the time to delay before sending the batch
+    * @return
+    *   updated [[BatchingSettings]] instance
+    */
+  def withDelayThreshold(delayThreshold: FiniteDuration): BatchingSettings =
+    copy(delayThreshold = Some(delayThreshold))
+
+  /** Add a request byte threshold to specify total number of elements to
+    * trigger a request
+    *
+    * @param elementCountThreshold
+    *   threshold
+    * @return
+    *   updated [[BatchingSettings]] instance
+    */
+  def withElementCountThreshold(elementCountThreshold: Long): BatchingSettings =
+    copy(elementCountThreshold = Some(elementCountThreshold))
+}
+
+object BatchingSettings {
+
+  /** Create a [[BatchingSettings]] instance with batching enabled
+    * @return
+    *   a new [[BatchingSettings]] instance
+    */
+  def enabled: BatchingSettings =
+    new BatchingSettings(enableBatching = true, None, None, None) {}
+
+  /** Create a [[BatchingSettings]] instance with batching disabled
+    *
+    * @return
+    *   a new [[BatchingSettings]] instance
+    */
+  def disabled: BatchingSettings =
+    new BatchingSettings(enableBatching = false, None, None, None) {}
+}

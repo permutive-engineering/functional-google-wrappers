@@ -18,9 +18,9 @@ package com.permutive.google.gax
 
 import cats.Applicative
 import cats.data.Kleisli
-import cats.syntax.all._
 import cats.effect.kernel._
 import cats.effect.std.{Dispatcher, Semaphore}
+import cats.syntax.all._
 import com.google.api.core.{
   ApiFuture,
   ApiFutureCallback,
@@ -30,7 +30,6 @@ import com.google.api.core.{
 import com.google.api.gax.batching.Batcher
 import com.google.api.gax.rpc.ServerStream
 import com.google.common.util.concurrent.MoreExecutors
-import com.permutive.google.gax.FunctionalGax.FunctionalBatcher
 import fs2.Stream
 
 import scala.concurrent.ExecutionContext
@@ -38,66 +37,7 @@ import scala.jdk.CollectionConverters._
 
 /** Utilities to convert GAX interfaces (e.g. [[com.google.api.core.ApiFuture]])
   * into functional equivalents (e.g. [[fs2.Stream]]).
-  *
-  * @note
-  *   This is a trait to allow users to provide test instances of these
-  *   conversions. Underlying methods are publicly available in the companion
-  *   object.
   */
-trait FunctionalGax[F[_]] {
-
-  /** Lift an [[com.google.api.core.ApiFuture]] into the `F[_]` context.
-    *
-    * @param fut
-    *   the [[com.google.api.core.ApiFuture]] to lift into the `F[_]` context.
-    *   Suspended in `F[_]` to avoid eager evaluation
-    */
-  def convertApiFuture[A](fut: F[ApiFuture[A]]): F[A]
-
-  /** Convert a [[com.google.api.gax.rpc.ServerStream]] to a [[fs2.Stream]] in
-    * the `F[_]` context.
-    *
-    * @param serverStream
-    *   the [[com.google.api.gax.rpc.ServerStream]] to convert to a
-    *   [[fs2.Stream]]. Suspended in `F[_]` to avoid eager evaluation
-    * @param chunkSize
-    *   the maximum size of chunks in the output stream
-    */
-  def convertServerStream[A](
-      serverStream: F[ServerStream[A]],
-      chunkSize: Int
-  ): Stream[F, A]
-
-  /** Convert a [[com.google.api.gax.batching.Batcher]] into a functional
-    * equivalent, represented as a [[cats.data.Kleisli Kleisli]].
-    *
-    * This *is* thread safe, unlike the underlying
-    * [[com.google.api.gax.batching.Batcher]], so can be accessed concurrently.
-    *
-    * The resulting Kleisli sends the input to the underlying
-    * [[com.google.api.gax.batching.Batcher]] in two phases: first queueing the
-    * input and then awaiting the response.
-    *
-    * The outer effect queues the input onto the internal buffer of the
-    * [[com.google.api.gax.batching.Batcher]]; after this effect is evaluated
-    * the [[com.google.api.gax.batching.Batcher]] will send a batch with this
-    * input eventually. The inner effect awaits the eventual result. The two
-    * effects could be flattened to await immediately, but this may be harmful
-    * to performance in some situations.
-    *
-    * @param batcher
-    *   the [[com.google.api.gax.batching.Batcher]] to convert, Suspended in
-    *   `F[_]` to avoid eager evaluation
-    *
-    * @note
-    *   Closing the resource may semantically block for some time as it flushes
-    *   the current batch and awaits results
-    */
-  def convertBatcher[Input, Result](
-      batcher: F[Batcher[Input, Result]]
-  ): Resource[F, FunctionalBatcher[F, Input, Result]]
-}
-
 object FunctionalGax {
 
   /** Thread safe, functional equivalent of
@@ -108,24 +48,6 @@ object FunctionalGax {
     * response.
     */
   type FunctionalBatcher[F[_], Input, Result] = Kleisli[F, Input, F[Result]]
-
-  /** Standard implementation of [[FunctionalGax]].
-    *
-    * Delegates to public methods in companion object.
-    */
-  def impl[F[_]: Async]: FunctionalGax[F] = new FunctionalGax[F] {
-    override def convertApiFuture[A](fut: F[ApiFuture[A]]) =
-      FunctionalGax.convertApiFuture(fut)
-    override def convertServerStream[A](
-        serverStream: F[ServerStream[A]],
-        chunkSize: Int
-    ) =
-      FunctionalGax.convertServerStream(serverStream, chunkSize)
-    override def convertBatcher[Input, Result](
-        batcher: F[Batcher[Input, Result]]
-    ) =
-      FunctionalGax.convertBatcher(batcher)
-  }
 
   /** Lift an [[com.google.api.core.ApiFuture]] into the `F[_]` context.
     *

@@ -37,16 +37,8 @@ class FunctionalGaxSpec extends BigtableSuite {
       : NonEmptyMap[String, NonEmptySet[String]] =
     NonEmptyMap.one("test-table", NonEmptySet.one(family))
 
-  lazy val sut = FunctionalGax.impl[IO]
-
   test(
-    "FunctionalGax.convertApiFuture should suspend the effect and not do anything until it is evaluated (interface)"
-  ) {
-    checkConvertSuspends(sut.convertApiFuture)
-  }
-
-  test(
-    "FunctionalGax.convertApiFuture should suspend the effect and not do anything until it is evaluated (companion object)"
+    "FunctionalGax.convertApiFuture should suspend the effect and not do anything until it is evaluated"
   ) {
     checkConvertSuspends(FunctionalGax.convertApiFuture)
   }
@@ -74,13 +66,7 @@ class FunctionalGaxSpec extends BigtableSuite {
   }
 
   test(
-    "FunctionalGax.convertServerStream should return the correct results (interface)"
-  ) {
-    checkServerStreamConverts(sut.convertServerStream(_, chunkSize = 128))
-  }
-
-  test(
-    "FunctionalGax.convertServerStream should return the correct results (companion object)"
+    "FunctionalGax.convertServerStream should return the correct results"
   ) {
     checkServerStreamConverts(
       FunctionalGax.convertServerStream(_, chunkSize = 128)
@@ -129,13 +115,7 @@ class FunctionalGaxSpec extends BigtableSuite {
   // This was mostly excercised in unit tests already, these are just integration tests
 
   test(
-    "FunctionalGax.convertBatcher batch as expected and flush on closing (interface)"
-  ) {
-    checkBatcherWorks(sut.convertBatcher)
-  }
-
-  test(
-    "FunctionalGax.convertBatcher batch as expected and flush on closing (companion object)"
+    "FunctionalGax.convertBatcher batch as expected and flush on closing"
   ) {
     checkBatcherWorks(FunctionalGax.convertBatcher)
   }
