@@ -41,9 +41,7 @@ class TestingBatcher[F[_]: Async, A, B](
   val getState: F[TestingBatcher.State] = state.get
 
   private[this] val acquireState: Resource[F, Unit] =
-    Resource.make[F, Unit](state.update(_.increment))(_ =>
-      state.update(_.decrement)
-    )
+    Resource.make[F, Unit](state.update(_.increment))(_ => state.update(_.decrement))
 
   val suspendedBatcher: Kleisli[F, A, ApiFuture[B]] =
     Kleisli(input =>

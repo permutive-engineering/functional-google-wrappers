@@ -20,28 +20,22 @@ import cats.Applicative
 import cats.syntax.all._
 import cats.effect.kernel.{Resource, Sync}
 import com.google.api.gax.batching.{BatchingSettings => JBatchingSettings}
-import com.google.cloud.bigtable.data.v2.{
-  BigtableDataSettings,
-  BigtableDataClient => JBigtableDataClient
-}
+import com.google.cloud.bigtable.data.v2.{BigtableDataSettings, BigtableDataClient => JBigtableDataClient}
 
 import scala.util.chaining._
 
-/** Helper to construct an underlying Java Bigtable client from the provided
-  * [[BigtableDataClientSettings]].
+/** Helper to construct an underlying Java Bigtable client from the provided [[BigtableDataClientSettings]].
   */
 object BigtableDataClientResource {
 
-  /** Construct an underlying Java Bigtable client from the provided
-    * [[BigtableDataClientSettings]].
+  /** Construct an underlying Java Bigtable client from the provided [[BigtableDataClientSettings]].
     */
   def apply[F[_]: Sync](
       settings: BigtableDataClientSettings[F]
   ): Resource[F, JBigtableDataClient] =
     resource(settings)
 
-  /** Construct an underlying Java Bigtable client from the provided
-    * [[BigtableDataClientSettings]].
+  /** Construct an underlying Java Bigtable client from the provided [[BigtableDataClientSettings]].
     */
   def resource[F[_]: Sync](
       settings: BigtableDataClientSettings[F]

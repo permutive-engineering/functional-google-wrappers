@@ -23,6 +23,8 @@ val Munit = "0.7.29"
 
 val MunitCE3 = "1.0.7"
 
+val Pureconfig = "0.17.2"
+
 val ScalacheckEffect = "1.0.4"
 
 val Scala213 = "2.13.10"
@@ -34,6 +36,7 @@ lazy val root =
     .aggregate(
       functionalGax,
       functionalGoogleCloudBigtable,
+      functionalGoogleCloudBigtablePureconfig,
       testkitMunitBigtable
     )
 
@@ -53,9 +56,8 @@ lazy val functionalGax = project
       "org.typelevel" %%% "scalacheck-effect-munit" % ScalacheckEffect % Test
     ),
     libraryDependencies ++= PartialFunction
-      .condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
-        case Some((2, 12)) =>
-          "org.scala-lang.modules" %%% "scala-collection-compat" % "2.8.1"
+      .condOpt(CrossVersion.partialVersion(scalaVersion.value)) { case Some((2, 12)) =>
+        "org.scala-lang.modules" %%% "scala-collection-compat" % "2.8.1"
       }
       .toList
   )
@@ -78,13 +80,26 @@ lazy val functionalGoogleCloudBigtable = project
       "org.typelevel" %%% "scalacheck-effect-munit" % ScalacheckEffect % Test
     ),
     libraryDependencies ++= PartialFunction
-      .condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
-        case Some((2, 12)) =>
-          "org.scala-lang.modules" %%% "scala-collection-compat" % "2.8.1" % Test
+      .condOpt(CrossVersion.partialVersion(scalaVersion.value)) { case Some((2, 12)) =>
+        "org.scala-lang.modules" %%% "scala-collection-compat" % "2.8.1" % Test
       }
       .toList
   )
   .dependsOn(functionalGax, testkitMunitBigtable % "test->compile")
+
+lazy val functionalGoogleCloudBigtablePureconfig = project
+  .in(file("functional-google-cloud-bigtable-pureconfig"))
+  .settings(
+    name := "functional-google-cloud-bigtable-pureconfig",
+    libraryDependencies ++= Seq(
+      "com.github.pureconfig" %%% "pureconfig-core" % Pureconfig
+    ),
+    libraryDependencies ++= {
+      if (tlIsScala3.value) Seq.empty
+      else Seq("com.github.pureconfig" %%% "pureconfig-generic" % Pureconfig)
+    }
+  )
+  .dependsOn(functionalGoogleCloudBigtable)
 
 lazy val testkitMunitBigtable = project
   .in(file("testkit-munit-bigtable"))
@@ -100,9 +115,8 @@ lazy val testkitMunitBigtable = project
       "com.google.cloud" % "google-cloud-bigtable-emulator" % "0.154.1"
     ),
     libraryDependencies ++= PartialFunction
-      .condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
-        case Some((2, 12)) =>
-          "org.scala-lang.modules" %%% "scala-collection-compat" % "2.8.1" % Test
+      .condOpt(CrossVersion.partialVersion(scalaVersion.value)) { case Some((2, 12)) =>
+        "org.scala-lang.modules" %%% "scala-collection-compat" % "2.8.1" % Test
       }
       .toList
   )

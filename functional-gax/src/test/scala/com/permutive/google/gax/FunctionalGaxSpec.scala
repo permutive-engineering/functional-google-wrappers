@@ -33,8 +33,7 @@ class FunctionalGaxSpec extends BigtableSuite {
   val testTable = "test-table"
   val family = "d"
 
-  override def tablesAndColumnFamilies
-      : NonEmptyMap[String, NonEmptySet[String]] =
+  override def tablesAndColumnFamilies: NonEmptyMap[String, NonEmptySet[String]] =
     NonEmptyMap.one("test-table", NonEmptySet.one(family))
 
   test(
@@ -136,40 +135,37 @@ class FunctionalGaxSpec extends BigtableSuite {
 
     convertBatcher(
       IO.delay(bigtableDataClient.newBulkMutationBatcher(testTable))
-    )
-      .use { batcher =>
-        for {
-          // Insert data and verify present
-          _ <- writeRowSync(key = key1, qualifier = qualifier, data = data)
-          _ <- writeRowSync(key = key2, qualifier = qualifier, data = data)
-          _ <- writeRowSync(key = key3, qualifier = qualifier, data = data)
-          _ <- writeRowSync(key = key4, qualifier = qualifier, data = data)
-          _ <- assertIOBoolean(existsSync(key1))
-          _ <- assertIOBoolean(existsSync(key2))
-          _ <- assertIOBoolean(existsSync(key3))
-          _ <- assertIOBoolean(existsSync(key4))
-          // Delete synchronously (flattening) and check gone immediately
-          _ <- deleteRowBatcher(key1, batcher).flatten
-          _ <- assertIOBoolean(notExistsSync(key1))
-          // Start a second deletion, check row still is there. This is a race so may be flaky!
-          await <- deleteRowBatcher(key2, batcher)
-          _ <- assertIOBoolean(existsSync(key2))
-          // Start a third deletion, this _should_ batch with the first. Should also still exist immediately after
-          await2 <- deleteRowBatcher(key3, batcher)
-          _ <- assertIOBoolean(existsSync(key3))
-          // Waiting for the third completion should mean both final rows are now gone
-          _ <- await2
-          _ <- assertIOBoolean(notExistsSync(key2))
-          _ <- assertIOBoolean(notExistsSync(key3))
-          // Await the second just for resource tidiness
-          _ <- await
-          // Start a 4th deletion but throw away the callback, check the resource closing waits for this to close!
-          _ <- deleteRowBatcher(key4, batcher).void
-        } yield ()
-      }
-      .flatMap(_ =>
-        assertIOBoolean(notExistsSync(key4))
-      ) // Check key 4 now gone
+    ).use { batcher =>
+      for {
+        // Insert data and verify present
+        _ <- writeRowSync(key = key1, qualifier = qualifier, data = data)
+        _ <- writeRowSync(key = key2, qualifier = qualifier, data = data)
+        _ <- writeRowSync(key = key3, qualifier = qualifier, data = data)
+        _ <- writeRowSync(key = key4, qualifier = qualifier, data = data)
+        _ <- assertIOBoolean(existsSync(key1))
+        _ <- assertIOBoolean(existsSync(key2))
+        _ <- assertIOBoolean(existsSync(key3))
+        _ <- assertIOBoolean(existsSync(key4))
+        // Delete synchronously (flattening) and check gone immediately
+        _ <- deleteRowBatcher(key1, batcher).flatten
+        _ <- assertIOBoolean(notExistsSync(key1))
+        // Start a second deletion, check row still is there. This is a race so may be flaky!
+        await <- deleteRowBatcher(key2, batcher)
+        _ <- assertIOBoolean(existsSync(key2))
+        // Start a third deletion, this _should_ batch with the first. Should also still exist immediately after
+        await2 <- deleteRowBatcher(key3, batcher)
+        _ <- assertIOBoolean(existsSync(key3))
+        // Waiting for the third completion should mean both final rows are now gone
+        _ <- await2
+        _ <- assertIOBoolean(notExistsSync(key2))
+        _ <- assertIOBoolean(notExistsSync(key3))
+        // Await the second just for resource tidiness
+        _ <- await
+        // Start a 4th deletion but throw away the callback, check the resource closing waits for this to close!
+        _ <- deleteRowBatcher(key4, batcher).void
+      } yield ()
+    }
+      .flatMap(_ => assertIOBoolean(notExistsSync(key4))) // Check key 4 now gone
   }
 
   def deleteRowBatcher(
