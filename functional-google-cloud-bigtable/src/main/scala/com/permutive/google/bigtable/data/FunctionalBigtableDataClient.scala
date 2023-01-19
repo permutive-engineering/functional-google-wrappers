@@ -117,6 +117,11 @@ trait FunctionalBigtableDataClient[F[_]] {
     */
   def mutateRow(rowMutation: RowMutation): F[Unit]
 
+  /** Mutate multiple rows in a batch. Each individual row is mutated atomically.
+    *
+    * @see
+    *   [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient#bulkMutateRows]]
+    */
   def bulkMutateRows(bulkMutation: BulkMutation): F[Unit]
 
   /** Create a `FunctionalBatcher` which mutates multiple rows in a batch. Each individual row is mutated atomically.
