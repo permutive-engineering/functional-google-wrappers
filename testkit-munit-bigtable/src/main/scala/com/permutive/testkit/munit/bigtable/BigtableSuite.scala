@@ -20,14 +20,8 @@ import cats.data.{NonEmptyMap, NonEmptySet}
 import cats.effect.{IO, Resource}
 import cats.syntax.all._
 import com.google.cloud.bigtable.admin.v2.models.{CreateTableRequest, Table}
-import com.google.cloud.bigtable.admin.v2.{
-  BigtableTableAdminClient,
-  BigtableTableAdminSettings
-}
-import com.google.cloud.bigtable.data.v2.{
-  BigtableDataClient,
-  BigtableDataSettings
-}
+import com.google.cloud.bigtable.admin.v2.{BigtableTableAdminClient, BigtableTableAdminSettings}
+import com.google.cloud.bigtable.data.v2.{BigtableDataClient, BigtableDataSettings}
 import com.google.cloud.bigtable.emulator.v2.Emulator
 import munit.CatsEffectSuite
 
@@ -36,20 +30,16 @@ import java.util.logging.Level
 
 /** Test suite for integration testing against Bigtable using munit.
   *
-  * Turns on an [[com.google.cloud.bigtable.emulator.v2.Emulator Emulator]] and
-  * provides a
-  * [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient]]
-  * and
-  * [[com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient BigtableTableAdminClient]].
-  * In addition tables are created before all the tests run and data in tables
-  * is cleared between each test.
+  * Turns on an [[com.google.cloud.bigtable.emulator.v2.Emulator Emulator]] and provides a
+  * [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient]] and
+  * [[com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient BigtableTableAdminClient]]. In addition tables are
+  * created before all the tests run and data in tables is cleared between each test.
   */
 trait BigtableSuite extends CatsEffectSuite {
 
   /** Map of table name to column families to create.
     *
-    * These are created before the tests start and any data present is cleared
-    * between each individual test.
+    * These are created before the tests start and any data present is cleared between each individual test.
     */
   def tablesAndColumnFamilies: NonEmptyMap[String, NonEmptySet[String]]
 
@@ -100,16 +90,14 @@ trait BigtableSuite extends CatsEffectSuite {
   def clearTable(client: BigtableTableAdminClient, table: String): IO[Unit] =
     IO(client.dropAllRows(table)).void
 
-  private lazy val bigtableResourcesFixture
-      : Fixture[(BigtableTableAdminClient, BigtableDataClient, Emulator)] =
+  private lazy val bigtableResourcesFixture: Fixture[(BigtableTableAdminClient, BigtableDataClient, Emulator)] =
     ResourceSuiteLocalFixture("resources", resources)
 
   // End-users can add their own resources if they need to  and just append to this list using
   // `super.munitFixtures.append`
   override def munitFixtures: Seq[Fixture[_]] = List(bigtableResourcesFixture)
 
-  private def resources
-      : Resource[IO, (BigtableTableAdminClient, BigtableDataClient, Emulator)] =
+  private def resources: Resource[IO, (BigtableTableAdminClient, BigtableDataClient, Emulator)] =
     for {
       emulator <- emulatorResource
       adminClient <- tableAdminClientResource(emulator)
@@ -163,9 +151,8 @@ trait BigtableSuite extends CatsEffectSuite {
     )
 
   private def setupTables(client: BigtableTableAdminClient): IO[Unit] =
-    tablesAndColumnFamilies.toSortedMap.toList.traverse_ {
-      case (table, columnFamilies) =>
-        createTableIfNotExists(client, table, columnFamilies)
+    tablesAndColumnFamilies.toSortedMap.toList.traverse_ { case (table, columnFamilies) =>
+      createTableIfNotExists(client, table, columnFamilies)
     }
 
 }

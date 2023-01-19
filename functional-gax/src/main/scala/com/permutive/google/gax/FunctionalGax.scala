@@ -21,12 +21,7 @@ import cats.data.Kleisli
 import cats.effect.kernel._
 import cats.effect.std.{Dispatcher, Semaphore}
 import cats.syntax.all._
-import com.google.api.core.{
-  ApiFuture,
-  ApiFutureCallback,
-  ApiFutures,
-  SettableApiFuture
-}
+import com.google.api.core.{ApiFuture, ApiFutureCallback, ApiFutures, SettableApiFuture}
 import com.google.api.gax.batching.Batcher
 import com.google.api.gax.rpc.ServerStream
 import com.google.common.util.concurrent.MoreExecutors
@@ -35,16 +30,14 @@ import fs2.Stream
 import scala.concurrent.ExecutionContext
 import scala.jdk.CollectionConverters._
 
-/** Utilities to convert GAX interfaces (e.g. [[com.google.api.core.ApiFuture]])
-  * into functional equivalents (e.g. [[fs2.Stream]]).
+/** Utilities to convert GAX interfaces (e.g. [[com.google.api.core.ApiFuture]]) into functional equivalents (e.g.
+  * [[fs2.Stream]]).
   */
 object FunctionalGax {
 
-  /** Thread safe, functional equivalent of
-    * [[com.google.api.gax.batching.Batcher]].
+  /** Thread safe, functional equivalent of [[com.google.api.gax.batching.Batcher]].
     *
-    * The outer effect sends the request to the
-    * [[com.google.api.gax.batching.Batcher]], the inner effect awaits the
+    * The outer effect sends the request to the [[com.google.api.gax.batching.Batcher]], the inner effect awaits the
     * response.
     */
   type FunctionalBatcher[F[_], Input, Result] = Kleisli[F, Input, F[Result]]
@@ -52,8 +45,8 @@ object FunctionalGax {
   /** Lift an [[com.google.api.core.ApiFuture]] into the `F[_]` context.
     *
     * @param fut
-    *   the [[com.google.api.core.ApiFuture]] to lift into the `F[_]` context.
-    *   Suspended in `F[_]` to avoid eager evaluation
+    *   the [[com.google.api.core.ApiFuture]] to lift into the `F[_]` context. Suspended in `F[_]` to avoid eager
+    *   evaluation
     */
   def convertApiFuture[F[_]: Async, A](fut: F[ApiFuture[A]]): F[A] =
     // We can't use CE3 `Async[F].fromCompletableFuture` as `ApiFuture` only extends `Future`.
@@ -88,12 +81,11 @@ object FunctionalGax {
         }
       }
 
-  /** Convert a [[com.google.api.gax.rpc.ServerStream]] to a [[fs2.Stream]] in
-    * the `F[_]` context.
+  /** Convert a [[com.google.api.gax.rpc.ServerStream]] to a [[fs2.Stream]] in the `F[_]` context.
     *
     * @param serverStream
-    *   the [[com.google.api.gax.rpc.ServerStream]] to convert to a
-    *   [[fs2.Stream]]. Suspended in `F[_]` to avoid eager evaluation
+    *   the [[com.google.api.gax.rpc.ServerStream]] to convert to a [[fs2.Stream]]. Suspended in `F[_]` to avoid eager
+    *   evaluation
     * @param chunkSize
     *   the maximum size of chunks in the output stream
     */
@@ -107,27 +99,22 @@ object FunctionalGax {
       item <- Stream.fromBlockingIterator(iterator, chunkSize)
     } yield item
 
-  /** Convert a [[com.google.api.gax.batching.Batcher]] into a functional
-    * equivalent, represented as a [[cats.data.Kleisli Kleisli]].
+  /** Convert a [[com.google.api.gax.batching.Batcher]] into a functional equivalent, represented as a
+    * [[cats.data.Kleisli Kleisli]].
     *
-    * The resulting Kleisli sends the input to the underlying
-    * [[com.google.api.gax.batching.Batcher]] in two phases: first queueing the
-    * input and then awaiting the response.
+    * The resulting Kleisli sends the input to the underlying [[com.google.api.gax.batching.Batcher]] in two phases:
+    * first queueing the input and then awaiting the response.
     *
-    * The outer effect queues the input onto the internal buffer of the
-    * [[com.google.api.gax.batching.Batcher]]; after this effect is evaluated
-    * the [[com.google.api.gax.batching.Batcher]] will send a batch with this
-    * input eventually. The inner effect awaits the eventual result. The two
-    * effects could be flattened to await immediately, but this may be harmful
-    * to performance in some situations.
+    * The outer effect queues the input onto the internal buffer of the [[com.google.api.gax.batching.Batcher]]; after
+    * this effect is evaluated the [[com.google.api.gax.batching.Batcher]] will send a batch with this input eventually.
+    * The inner effect awaits the eventual result. The two effects could be flattened to await immediately, but this may
+    * be harmful to performance in some situations.
     *
     * @param batcher
-    *   the [[com.google.api.gax.batching.Batcher]] to convert, Suspended in
-    *   `F[_]` to avoid eager evaluation
+    *   the [[com.google.api.gax.batching.Batcher]] to convert, Suspended in `F[_]` to avoid eager evaluation
     *
     * @note
-    *   Closing the resource may semantically block for some time as it flushes
-    *   the current batch and awaits results
+    *   Closing the resource may semantically block for some time as it flushes the current batch and awaits results
     */
   def convertBatcher[F[_]: Async, Input, Result](
       batcher: F[Batcher[Input, Result]]
@@ -142,11 +129,9 @@ object FunctionalGax {
         )
       )
 
-  /** Unsafely evaluate an effect and produce the result in an
-    * [[com.google.api.core.ApiFuture]].
+  /** Unsafely evaluate an effect and produce the result in an [[com.google.api.core.ApiFuture]].
     *
-    * This is public as it may be useful to create an
-    * [[com.google.api.core.ApiFuture]] for testing purposes.
+    * This is public as it may be useful to create an [[com.google.api.core.ApiFuture]] for testing purposes.
     */
   def unsafeToApiFuture[F[_], A](
       fa: F[A],

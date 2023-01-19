@@ -59,8 +59,7 @@ class FunctionalBigtableDataClientSpec extends BigtableSuite {
   lazy val sutResource: Resource[IO, FunctionalBigtableDataClient[IO]] =
     FunctionalBigtableDataClient.resource(config)
 
-  override def tablesAndColumnFamilies
-      : NonEmptyMap[String, NonEmptySet[String]] =
+  override def tablesAndColumnFamilies: NonEmptyMap[String, NonEmptySet[String]] =
     NonEmptyMap.of(
       testTable -> NonEmptySet.of(familyA, familyB),
       emptyStringTable -> NonEmptySet.of(familyA, familyB)

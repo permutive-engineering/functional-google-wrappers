@@ -52,17 +52,16 @@ class KleisliBatcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
   private def checkConcurrentAccess(
       permits: Int
   )(implicit loc: Location): IO[Unit] =
-    TestControl.executeEmbed(resources[Unit, Unit](permits, _ => IO.unit).use {
-      case (tb, sut) =>
-        for {
-          _ <- List
-            .fill(permits * 10)(sut.run(()).flatten)
-            .parTraverse_(identity)
-          res <- tb.getState
-        } yield assertEquals(
-          res,
-          TestingBatcher.State(inflight = 0, maxInflight = permits)
-        )
+    TestControl.executeEmbed(resources[Unit, Unit](permits, _ => IO.unit).use { case (tb, sut) =>
+      for {
+        _ <- List
+          .fill(permits * 10)(sut.run(()).flatten)
+          .parTraverse_(identity)
+        res <- tb.getState
+      } yield assertEquals(
+        res,
+        TestingBatcher.State(inflight = 0, maxInflight = permits)
+      )
     })
 
   test(

@@ -24,9 +24,7 @@ import com.google.api.gax.grpc.GrpcCallContext
 import com.google.api.gax.rpc.ServerStream
 import com.google.cloud.bigtable.data.v2.models.Filters.Filter
 import com.google.cloud.bigtable.data.v2.models._
-import com.google.cloud.bigtable.data.v2.{
-  BigtableDataClient => JBigtableDataClient
-}
+import com.google.cloud.bigtable.data.v2.{BigtableDataClient => JBigtableDataClient}
 import com.google.protobuf.ByteString
 import com.permutive.google.gax.FunctionalGax
 import com.permutive.google.gax.FunctionalGax.FunctionalBatcher
@@ -34,26 +32,20 @@ import fs2.{Chunk, Stream}
 
 import scala.jdk.CollectionConverters._
 
-/** Thin wrapper around
-  * [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient]]
-  * with functional effects and safer response types.
+/** Thin wrapper around [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient]] with functional
+  * effects and safer response types.
   *
-  * Handles `null` values in the underlying client response types and converts
-  * collections to Scala equivalents. Does _not_ modify the responses any
-  * further though. For example,
-  * [[com.google.cloud.bigtable.data.v2.models.Row Row]] will responses will
-  * still contain Java collections.
+  * Handles `null` values in the underlying client response types and converts collections to Scala equivalents. Does
+  * _not_ modify the responses any further though. For example, [[com.google.cloud.bigtable.data.v2.models.Row Row]]
+  * will responses will still contain Java collections.
   *
-  * Exposes all underlying functionality of the Java client, but not all
-  * methods. It reduces the number of methods by:
-  *   - Not exposing blocking versions of methods, only non-blocking (and
-  *     referentially transparent) methods exist
+  * Exposes all underlying functionality of the Java client, but not all methods. It reduces the number of methods by:
+  *   - Not exposing blocking versions of methods, only non-blocking (and referentially transparent) methods exist
   *   - Removing overloaded methods by using [[scala.Option Option]]
   *
   * @note
-  *   Unfortunately ScalaDoc cannot link to the exact methods in
-  *   `BigtableDataClient` (as that is a Java class). Instead links just go to
-  *   documentation for the class, with the correct method name as the text.
+  *   Unfortunately ScalaDoc cannot link to the exact methods in `BigtableDataClient` (as that is a Java class). Instead
+  *   links just go to documentation for the class, with the correct method name as the text.
   */
 sealed abstract class FunctionalBigtableDataClient[F[_]: Async] private (
     dataClient: JBigtableDataClient
@@ -84,8 +76,7 @@ sealed abstract class FunctionalBigtableDataClient[F[_]: Async] private (
 
   /** Read a single row with an optional filter.
     *
-    * Most users will want to impose a "cells per column" limit of 1:
-    * \```FILTERS.limit().cellsPerColumn(1)```
+    * Most users will want to impose a "cells per column" limit of 1: \```FILTERS.limit().cellsPerColumn(1)```
     *
     * @see
     *   [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient#readRow]]
@@ -101,8 +92,7 @@ sealed abstract class FunctionalBigtableDataClient[F[_]: Async] private (
 
   /** Read a single row with an optional filter.
     *
-    * Most users will want to impose a "cells per column" limit of 1:
-    * \```FILTERS.limit().cellsPerColumn(1)```
+    * Most users will want to impose a "cells per column" limit of 1: \```FILTERS.limit().cellsPerColumn(1)```
     *
     * @see
     *   [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient#readRow]]
@@ -118,8 +108,7 @@ sealed abstract class FunctionalBigtableDataClient[F[_]: Async] private (
 
   /** Stream a series of result rows from the provided query.
     *
-    * Most users will want to impose a "cells per column" limit of 1:
-    * \```FILTERS.limit().cellsPerColumn(1)```
+    * Most users will want to impose a "cells per column" limit of 1: \```FILTERS.limit().cellsPerColumn(1)```
     *
     * @see
     *   [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient#readRows]]
@@ -127,21 +116,17 @@ sealed abstract class FunctionalBigtableDataClient[F[_]: Async] private (
   def readRows(query: Query, streamChunkSize: Int): Stream[F, Row] =
     delayStream(dataClient.readRows(query), streamChunkSize)
 
-  /** Sample the row keys present in the table. Returned keys delimit contiguous
-    * sections, approximately equal in size.
+  /** Sample the row keys present in the table. Returned keys delimit contiguous sections, approximately equal in size.
     *
     * @see
     *   [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient#sampleRowKeys]]
     *
     * @note
-    *   this returns a [[fs2.Chunk Chunk]] because it's the easiest immutable
-    *   collection to return which wraps the underlying Java list; other
-    *   collections iterate to construct.
+    *   this returns a [[fs2.Chunk Chunk]] because it's the easiest immutable collection to return which wraps the
+    *   underlying Java list; other collections iterate to construct.
     */
   def sampleRowKeys(tableId: String): F[Chunk[KeyOffset]] =
-    delayConvert(dataClient.sampleRowKeysAsync(tableId)).map(jList =>
-      Chunk.iterable(jList.asScala)
-    )
+    delayConvert(dataClient.sampleRowKeysAsync(tableId)).map(jList => Chunk.iterable(jList.asScala))
 
   /** Mutate a single row atomically.
     *
@@ -151,8 +136,7 @@ sealed abstract class FunctionalBigtableDataClient[F[_]: Async] private (
   def mutateRow(rowMutation: RowMutation): F[Unit] =
     delayConvert(dataClient.mutateRowAsync(rowMutation)).void
 
-  /** Mutate multiple rows in a batch. Each individual row is mutated
-    * atomically.
+  /** Mutate multiple rows in a batch. Each individual row is mutated atomically.
     *
     * @see
     *   [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient#bulkMutateRows]]
@@ -160,27 +144,21 @@ sealed abstract class FunctionalBigtableDataClient[F[_]: Async] private (
   def bulkMutateRows(bulkMutation: BulkMutation): F[Unit] =
     delayConvert(dataClient.bulkMutateRowsAsync(bulkMutation)).void
 
-  /** Create a `FunctionalBatcher` which mutates multiple rows in a batch. Each
-    * individual row is mutated atomically.
+  /** Create a `FunctionalBatcher` which mutates multiple rows in a batch. Each individual row is mutated atomically.
     *
     * This is thread safe, so can be accessed concurrently.
     *
-    * The resulting Kleisli sends the input to the underlying
-    * [[com.google.api.gax.batching.Batcher]] in two phases, each represented by
-    * nested effects (`F[F[Unit]]`). The outer effect queues the input to the
-    * underlying `Batcher` to be sent at some point, the inner effect then
-    * semantically blocks waiting for a response.
+    * The resulting Kleisli sends the input to the underlying [[com.google.api.gax.batching.Batcher]] in two phases,
+    * each represented by nested effects (`F[F[Unit]]`). The outer effect queues the input to the underlying `Batcher`
+    * to be sent at some point, the inner effect then semantically blocks waiting for a response.
     *
     * ==Configuring batching==
-    * Configuration of this batching is controlled by
-    * [[BigtableDataClientSettings]]'s `mutateRowsBatchingSettings` method. Note
-    * that this is at the point this interface is constructed, not whenever this
-    * method is called.
+    * Configuration of this batching is controlled by [[BigtableDataClientSettings]]'s `mutateRowsBatchingSettings`
+    * method. Note that this is at the point this interface is constructed, not whenever this method is called.
     *
     * Default settings are visible in the docstring of
     * [[https://googleapis.dev/java/google-cloud-bigtable/latest/com/google/cloud/bigtable/data/v2/stub/EnhancedBigtableStubSettings.html#bulkMutateRowsSettings-- BigtableDataSettings.getStubSettings.bulkMutateRowsSettings()]]
-    * (note: not the builder). These are copied below but they might not stay
-    * accurate:
+    * (note: not the builder). These are copied below but they might not stay accurate:
     * {{{
     * On breach of certain triggers, the operation initiates processing of accumulated request for which the default settings are:
     *  - When the request count reaches 100.
@@ -192,19 +170,15 @@ sealed abstract class FunctionalBigtableDataClient[F[_]: Async] private (
     *   [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient#newBulkMutationBatcher]]
     *
     * @note
-    *   Closing the resource may semantically block for some time as it flushes
-    *   the current batch and awaits results
+    *   Closing the resource may semantically block for some time as it flushes the current batch and awaits results
     *
     * @note
-    *   `BigtableDataSettings.Builder.enableBatchMutationLatencyBasedThrottling`
-    *   may be useful as well. It dynamically alters the number of in-flight
-    *   requests to achieve a target RPC latency. To use this setting you will
-    *   manually need to set it in
-    *   [[BigtableDataClientSettings!.settingsModifier]]. Note that this (I
-    *   think!) does not affect batching thresholds at all; instead it only
-    *   affects the number of in-flight requests allowed to target a certain
-    *   latency _after_ a batching threshold has been reached. I may be wrong
-    *   though, these settings are very hard to understand...
+    *   `BigtableDataSettings.Builder.enableBatchMutationLatencyBasedThrottling` may be useful as well. It dynamically
+    *   alters the number of in-flight requests to achieve a target RPC latency. To use this setting you will manually
+    *   need to set it in [[BigtableDataClientSettings!.settingsModifier]]. Note that this (I think!) does not affect
+    *   batching thresholds at all; instead it only affects the number of in-flight requests allowed to target a certain
+    *   latency _after_ a batching threshold has been reached. I may be wrong though, these settings are very hard to
+    *   understand...
     */
   def bulkMutateRowsBatcher(
       tableId: String,
@@ -216,30 +190,24 @@ sealed abstract class FunctionalBigtableDataClient[F[_]: Async] private (
       // We need to define a new batcher to convert the Java `void` to a unit
       .map(_.map(_.void))
 
-  /** Create a `FunctionalBatcher` which reads multiple rows, with an optional
-    * filter, in a batch.
+  /** Create a `FunctionalBatcher` which reads multiple rows, with an optional filter, in a batch.
     *
     * This is thread safe, so can be accessed concurrently.
     *
-    * The resulting Kleisli sends the input to the underlying
-    * [[com.google.api.gax.batching.Batcher]] in two phases, each represented by
-    * nested effects (`F[F[Option[Row]]]`). The outer effect queues the input to
-    * the underlying `Batcher` to be sent at some point, the inner effect then
-    * semantically blocks waiting for a response.
+    * The resulting Kleisli sends the input to the underlying [[com.google.api.gax.batching.Batcher]] in two phases,
+    * each represented by nested effects (`F[F[Option[Row]]]`). The outer effect queues the input to the underlying
+    * `Batcher` to be sent at some point, the inner effect then semantically blocks waiting for a response.
     *
-    * Most users will want to impose a "cells per column" limit of 1:
-    * \```FILTERS.limit().cellsPerColumn(1)```
+    * Most users will want to impose a "cells per column" limit of 1: \```FILTERS.limit().cellsPerColumn(1)```
     *
     * ==Configuring batching==
     * Configuration of this batching is controlled by
-    * [[com.permutive.google.bigtable.data.BigtableDataClientSettings.readRowsBatchingSettings]].Note
-    * that this is at the point this interface is constructed, not whenever this
-    * method is called.
+    * [[com.permutive.google.bigtable.data.BigtableDataClientSettings.readRowsBatchingSettings]].Note that this is at
+    * the point this interface is constructed, not whenever this method is called.
     *
     * Default settings are visible in the docstring of
     * [[https://googleapis.dev/java/google-cloud-bigtable/latest/com/google/cloud/bigtable/data/v2/stub/EnhancedBigtableStubSettings.html#bulkReadRowsSettings-- BigtableDataSettings.getStubSettings.bulkReadRowsSettings()]]
-    * (note: not the builder). These are copied below but they might not stay
-    * accurate:
+    * (note: not the builder). These are copied below but they might not stay accurate:
     * {{{
     * On breach of certain triggers, the operation initiates processing of accumulated request for which the default settings are:
     *  - When the request count reaches 100.
@@ -251,8 +219,7 @@ sealed abstract class FunctionalBigtableDataClient[F[_]: Async] private (
     *   [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient#newBulkReadRowsBatcher]]
     *
     * @note
-    *   Closing the resource may semantically block for some time as it flushes
-    *   the current batch and awaits results
+    *   Closing the resource may semantically block for some time as it flushes the current batch and awaits results
     */
   def bulkReadRowsBatcher(
       tableId: String,
@@ -281,8 +248,7 @@ sealed abstract class FunctionalBigtableDataClient[F[_]: Async] private (
       // Convert Java Boolean => Scala, doesn't "just work" unfortunately
       .map(b => b)
 
-  /** Modify a row atomically on the server based on its current value. Returns
-    * the new contents of all modified cells.
+  /** Modify a row atomically on the server based on its current value. Returns the new contents of all modified cells.
     *
     * @see
     *   [[com.google.cloud.bigtable.data.v2.BigtableDataClient BigtableDataClient#readModifyWriteRow]]
@@ -310,8 +276,7 @@ sealed abstract class FunctionalBigtableDataClient[F[_]: Async] private (
 
 object FunctionalBigtableDataClient {
 
-  /** Construct a [[FunctionalBigtableDataClient]] given the provided settings
-    * for the underlying client.
+  /** Construct a [[FunctionalBigtableDataClient]] given the provided settings for the underlying client.
     */
   def resource[F[_]: Async](
       dataClientSettings: BigtableDataClientSettings[F]

@@ -34,8 +34,7 @@ class BigtableSuiteSpec extends BigtableSuite {
   val readRow: IO[Option[Row]] =
     IO.delay(Option(bigtableDataClient.readRow(testTable, key)))
 
-  override lazy val tablesAndColumnFamilies
-      : NonEmptyMap[String, NonEmptySet[String]] =
+  override lazy val tablesAndColumnFamilies: NonEmptyMap[String, NonEmptySet[String]] =
     NonEmptyMap.one("test-table", NonEmptySet.one(columnFamily))
 
   test("BigtableSuite should support data retrieval") {

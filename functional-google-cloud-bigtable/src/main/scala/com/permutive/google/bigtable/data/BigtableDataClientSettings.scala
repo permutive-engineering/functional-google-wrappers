@@ -31,34 +31,28 @@ import scala.concurrent.duration.FiniteDuration
   * @see
   *   [[BigtableDataClientResource]] to construct the underlying client.
   * @see
-  *   [[BatchingSettings]] for an explanation of batching settings and the
-  *   default values.
+  *   [[BatchingSettings]] for an explanation of batching settings and the default values.
   *
   * @param projectId
   *   the target GCP project
   * @param instanceId
   *   the target Bigtable instance
   * @param endpoint
-  *   optional settings to configure where the target Bigtable instance is
-  *   located. If not supplied then live/real Bigtable will be used (hosted by
-  *   Google)
+  *   optional settings to configure where the target Bigtable instance is located. If not supplied then live/real
+  *   Bigtable will be used (hosted by Google)
   * @param settingsModifier
-  *   optional settings to configure the underlying builder. If not supplied and
-  *   the target instance is not an emulator then the
-  *   [[BigtableDataClientSettings#oldChannelProviderSettings]] will be applied
+  *   optional settings to configure the underlying builder. If not supplied and the target instance is not an emulator
+  *   then the [[BigtableDataClientSettings#oldChannelProviderSettings]] will be applied
   * @param applicationProfile
-  *   the application profile the client will identity itself with, requests
-  *   will be handled according to that application profile. If it is not set,
-  *   the 'default' profile will be used
+  *   the application profile the client will identity itself with, requests will be handled according to that
+  *   application profile. If it is not set, the 'default' profile will be used
   * @param readRowsBatchingSettings
-  *   [[BatchingSettings]] to use for `bulkReadRowsBatcher`. If not supplied
-  *   then default settings are used, these can be found in the docstring of
-  *   [[BatchingSettings]] and
+  *   [[BatchingSettings]] to use for `bulkReadRowsBatcher`. If not supplied then default settings are used, these can
+  *   be found in the docstring of [[BatchingSettings]] and
   *   [[https://googleapis.dev/java/google-cloud-bigtable/latest/com/google/cloud/bigtable/data/v2/stub/EnhancedBigtableStubSettings.html#bulkReadRowsSettings-- BigtableDataSettings.getStubSettings.bulkReadRowsSettings()]]
   * @param mutateRowsBatchingSettings
-  *   [[BatchingSettings]] to use for `bulkMutateRowsBatcher`. If not supplied
-  *   then default settings are used, these can be found in the docstring of
-  *   [[BatchingSettings]] and
+  *   [[BatchingSettings]] to use for `bulkMutateRowsBatcher`. If not supplied then default settings are used, these can
+  *   be found in the docstring of [[BatchingSettings]] and
   *   [[https://googleapis.dev/java/google-cloud-bigtable/latest/com/google/cloud/bigtable/data/v2/stub/EnhancedBigtableStubSettings.html#bulkMutateRowsSettings-- BigtableDataSettings.getStubSettings.bulkMutateRowsSettings()]]
   */
 sealed abstract class BigtableDataClientSettings[F[_]] private (
@@ -80,10 +74,8 @@ sealed abstract class BigtableDataClientSettings[F[_]] private (
         BigtableDataSettings.Builder => F[BigtableDataSettings.Builder]
       ] = settingsModifier,
       applicationProfile: Option[String] = applicationProfile,
-      readRowsBatchingSettings: Option[BatchingSettings] =
-        readRowsBatchingSettings,
-      mutateRowsBatchingSettings: Option[BatchingSettings] =
-        mutateRowsBatchingSettings
+      readRowsBatchingSettings: Option[BatchingSettings] = readRowsBatchingSettings,
+      mutateRowsBatchingSettings: Option[BatchingSettings] = mutateRowsBatchingSettings
   ): BigtableDataClientSettings[F] = new BigtableDataClientSettings[F](
     projectId,
     instanceId,
@@ -105,8 +97,7 @@ sealed abstract class BigtableDataClientSettings[F[_]] private (
 
   /** Provide a function to modify the underlying Java client settings
     * @param f
-    *   function to modify settings, allowing for some side effect captured by
-    *   `F`
+    *   function to modify settings, allowing for some side effect captured by `F`
     * @return
     *   updated [[BigtableDataClientSettings]]
     */
@@ -114,9 +105,8 @@ sealed abstract class BigtableDataClientSettings[F[_]] private (
       f: BigtableDataSettings.Builder => F[BigtableDataSettings.Builder]
   ): BigtableDataClientSettings[F] = copy(settingsModifier = Some(f))
 
-  /** Provide an optional application profile that the client will identity
-    * itself with, requests will be handled according to that application
-    * profile
+  /** Provide an optional application profile that the client will identity itself with, requests will be handled
+    * according to that application profile
     * @param applicationProfile
     *   application profile name
     * @return
@@ -153,22 +143,18 @@ sealed abstract class BigtableDataClientSettings[F[_]] private (
 
 object BigtableDataClientSettings {
 
-  /** Channel provider settings for the Bigtable client as existed in the
-    * underling Java library before `1.16.0`.
+  /** Channel provider settings for the Bigtable client as existed in the underling Java library before `1.16.0`.
     *
     * These setting are applied by default to all underlying clients unless
     * [[BigtableDataClientSettings.settingsModifier]] is specified.
     *
-    * Version `1.16.0` introduced changes which led to `GOAWAY` being observed
-    * in production. As a result these changes we "reverted" manually by us:
-    * https://github.com/permutive/permutive-utils/pull/97
+    * Version `1.16.0` introduced changes which led to `GOAWAY` being observed in production. As a result these changes
+    * we "reverted" manually by us: https://github.com/permutive/permutive-utils/pull/97
     *
-    * Version release:
-    * https://github.com/googleapis/java-bigtable/releases/tag/v1.16.0 Changes:
+    * Version release: https://github.com/googleapis/java-bigtable/releases/tag/v1.16.0 Changes:
     * https://github.com/googleapis/java-bigtable/pull/409
     */
-  def oldChannelProviderSettings[F[_]: Sync]
-      : BigtableDataSettings.Builder => F[BigtableDataSettings.Builder] =
+  def oldChannelProviderSettings[F[_]: Sync]: BigtableDataSettings.Builder => F[BigtableDataSettings.Builder] =
     settings =>
       for {
         channelProvider <-
@@ -195,8 +181,7 @@ object BigtableDataClientSettings {
         }
       } yield updated
 
-  /** Create an instance of [[BigtableDataClientSettings]] with the required
-    * fields provided
+  /** Create an instance of [[BigtableDataClientSettings]] with the required fields provided
     *
     * @param projectId
     *   the target GCP project
@@ -219,8 +204,7 @@ object BigtableDataClientSettings {
   ) {}
 }
 
-/** Settings to configure the location of Bigtable, if live Bigtable is not
-  * used.
+/** Settings to configure the location of Bigtable, if live Bigtable is not used.
   *
   * @param host
   *   host of target Bigtable instance
@@ -263,38 +247,33 @@ object EndpointSettings {
 
 /** Settings to configure batching thresholds.
   *
-  * These settings are a Scala representation of
-  * [[com.google.api.gax.batching.BatchingSettings BatchingSettings]] in the
-  * underlying Java library.
+  * These settings are a Scala representation of [[com.google.api.gax.batching.BatchingSettings BatchingSettings]] in
+  * the underlying Java library.
   *
-  * When batching, if any threshold is passed then a request will be sent. Note
-  * that these are thresholds, not limits, so a request can be sent that is over
-  * the threshold for bytes or element counts. As an example with bytes: if the
-  * current total size of queued elements is `a` and another element is added
-  * with size `b` then a request of size `a + b` will be sent if `a + b` is over
-  * the bytes threshold.
+  * When batching, if any threshold is passed then a request will be sent. Note that these are thresholds, not limits,
+  * so a request can be sent that is over the threshold for bytes or element counts. As an example with bytes: if the
+  * current total size of queued elements is `a` and another element is added with size `b` then a request of size `a +
+  * b` will be sent if `a + b` is over the bytes threshold.
   *
   * @note
-  *   default settings are visible in the underlying Java library docstrings.
-  *   See
+  *   default settings are visible in the underlying Java library docstrings. See
   *   [[https://googleapis.dev/java/google-cloud-bigtable/latest/com/google/cloud/bigtable/data/v2/stub/EnhancedBigtableStubSettings.html#bulkMutateRowsSettings-- BigtableDataSettings.getStubSettings.bulkMutateRowsSettings()]]
   *   for default mutate batching settings, and
   *   [[https://googleapis.dev/java/google-cloud-bigtable/latest/com/google/cloud/bigtable/data/v2/stub/EnhancedBigtableStubSettings.html#bulkReadRowsSettings-- BigtableDataSettings.getStubSettings.bulkReadRowsSettings()]]
-  *   for default read batching settings. Defaults are also specified in the
-  *   parameter here, but these may be out of date.
+  *   for default read batching settings. Defaults are also specified in the parameter here, but these may be out of
+  *   date.
   *
   * @param enableBatching
   *   whether batching should be enabled or not
   * @param requestByteThreshold
-  *   threshold total number of bytes in queued elements to trigger a request.
-  *   If not specified the default value is 400KB for read and 20MB for mutate.
+  *   threshold total number of bytes in queued elements to trigger a request. If not specified the default value is
+  *   400KB for read and 20MB for mutate.
   * @param delayThreshold
-  *   delay after first element is queued to send a request, even if no other
-  *   threshold has been reached. If not specified the default value is 1 second
-  *   for both read and mutate.
+  *   delay after first element is queued to send a request, even if no other threshold has been reached. If not
+  *   specified the default value is 1 second for both read and mutate.
   * @param elementCountThreshold
-  *   threshold total number of queued elements to trigger a request. If not
-  *   specified the default value is 100 elements for both read and mutate.
+  *   threshold total number of queued elements to trigger a request. If not specified the default value is 100 elements
+  *   for both read and mutate.
   */
 sealed abstract class BatchingSettings private (
     val enableBatching: Boolean,
@@ -314,8 +293,7 @@ sealed abstract class BatchingSettings private (
     elementCountThreshold
   ) {}
 
-  /** Add a request byte threshold to specify total number of bytes in queued
-    * elements to trigger a request
+  /** Add a request byte threshold to specify total number of bytes in queued elements to trigger a request
     * @param requestByteThreshold
     *   threshold
     * @return
@@ -324,8 +302,7 @@ sealed abstract class BatchingSettings private (
   def withRequestByteThreshold(requestByteThreshold: Long): BatchingSettings =
     copy(requestByteThreshold = Some(requestByteThreshold))
 
-  /** Add a delay threshold to specify delay after first element is queued to
-    * send a request.
+  /** Add a delay threshold to specify delay after first element is queued to send a request.
     * @param delayThreshold
     *   the time to delay before sending the batch
     * @return
@@ -334,8 +311,7 @@ sealed abstract class BatchingSettings private (
   def withDelayThreshold(delayThreshold: FiniteDuration): BatchingSettings =
     copy(delayThreshold = Some(delayThreshold))
 
-  /** Add a request byte threshold to specify total number of elements to
-    * trigger a request
+  /** Add a request byte threshold to specify total number of elements to trigger a request
     *
     * @param elementCountThreshold
     *   threshold
