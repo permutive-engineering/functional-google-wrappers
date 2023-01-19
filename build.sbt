@@ -37,6 +37,7 @@ lazy val root =
       functionalGax,
       functionalGoogleCloudBigtable,
       functionalGoogleCloudBigtablePureconfig,
+      functionalGoogleCloudBigtableTrace4Cats,
       testkitMunitBigtable
     )
 
@@ -98,6 +99,16 @@ lazy val functionalGoogleCloudBigtablePureconfig = project
       if (tlIsScala3.value) Seq.empty
       else Seq("com.github.pureconfig" %%% "pureconfig-generic" % Pureconfig)
     }
+  )
+  .dependsOn(functionalGoogleCloudBigtable)
+
+lazy val functionalGoogleCloudBigtableTrace4Cats = project
+  .in(file("functional-google-cloud-bigtable-trace4cats"))
+  .settings(
+    name := "functional-google-cloud-bigtable-trace4cats",
+    libraryDependencies ++= Seq(
+      "io.janstenpickle" %%% "trace4cats-core" % "0.14.1"
+    )
   )
   .dependsOn(functionalGoogleCloudBigtable)
 
