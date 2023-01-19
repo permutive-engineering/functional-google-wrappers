@@ -73,7 +73,7 @@ class TestingBatcherSpec extends CatsEffectSuite {
           // ApiFutures will start running in background, give them a tiny tick to get going though.
           // The test fails if this is not done, I presume because nothing gets executed (i.e. fibers aren't running) until
           // the first tick occurs.
-          _ <- IO.sleep(1.nanosecond)
+          _ <- IO.sleep(1.millisecond)
           inflight <- batcher.getState
           _ <- fibers.traverse_(_.join)
           end <- batcher.getState
