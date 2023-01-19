@@ -52,15 +52,15 @@ class FunctionalGaxSpec extends BigtableSuite {
     for {
       // Insert row and check exists
       _ <- writeRowSync(key = key, qualifier = qualifier, data = data)
-      _ <- assertIOBoolean(existsSync(key))
+      _ <- existsSync(key).assert
       // Creation deletion request, should not do anything
       deletion: IO[Unit] = convertApiFuture(deleteRowAsync(key)).void
       // Sleep and check row still there
       _ <- IO.sleep(1.second)
-      _ <- assertIOBoolean(existsSync(key))
+      _ <- existsSync(key).assert
       // Evaluate IO and check row now deleted
       _ <- deletion
-      _ <- assertIOBoolean(notExistsSync(key))
+      _ <- notExistsSync(key).assert
     } yield ()
   }
 
@@ -87,9 +87,9 @@ class FunctionalGaxSpec extends BigtableSuite {
       _ <- writeRowSync(key = key1, qualifier = qualifier, data = data)
       _ <- writeRowSync(key = key2, qualifier = qualifier, data = data)
       _ <- writeRowSync(key = key3, qualifier = qualifier, data = data)
-      _ <- assertIOBoolean(existsSync(key1))
-      _ <- assertIOBoolean(existsSync(key2))
-      _ <- assertIOBoolean(existsSync(key3))
+      _ <- existsSync(key1).assert
+      _ <- existsSync(key2).assert
+      _ <- existsSync(key3).assert
       read = convertServerStream(
         IO(bigtableDataClient.readRows(Query.create(testTable)))
       )
@@ -142,30 +142,30 @@ class FunctionalGaxSpec extends BigtableSuite {
         _ <- writeRowSync(key = key2, qualifier = qualifier, data = data)
         _ <- writeRowSync(key = key3, qualifier = qualifier, data = data)
         _ <- writeRowSync(key = key4, qualifier = qualifier, data = data)
-        _ <- assertIOBoolean(existsSync(key1))
-        _ <- assertIOBoolean(existsSync(key2))
-        _ <- assertIOBoolean(existsSync(key3))
-        _ <- assertIOBoolean(existsSync(key4))
+        _ <- existsSync(key1).assert
+        _ <- existsSync(key2).assert
+        _ <- existsSync(key3).assert
+        _ <- existsSync(key4).assert
         // Delete synchronously (flattening) and check gone immediately
         _ <- deleteRowBatcher(key1, batcher).flatten
-        _ <- assertIOBoolean(notExistsSync(key1))
+        _ <- notExistsSync(key1).assert
         // Start a second deletion, check row still is there. This is a race so may be flaky!
         await <- deleteRowBatcher(key2, batcher)
-        _ <- assertIOBoolean(existsSync(key2))
+        _ <- existsSync(key2).assert
         // Start a third deletion, this _should_ batch with the first. Should also still exist immediately after
         await2 <- deleteRowBatcher(key3, batcher)
-        _ <- assertIOBoolean(existsSync(key3))
+        _ <- existsSync(key3).assert
         // Waiting for the third completion should mean both final rows are now gone
         _ <- await2
-        _ <- assertIOBoolean(notExistsSync(key2))
-        _ <- assertIOBoolean(notExistsSync(key3))
+        _ <- notExistsSync(key2).assert
+        _ <- notExistsSync(key3).assert
         // Await the second just for resource tidiness
         _ <- await
         // Start a 4th deletion but throw away the callback, check the resource closing waits for this to close!
         _ <- deleteRowBatcher(key4, batcher).void
       } yield ()
     }
-      .flatMap(_ => assertIOBoolean(notExistsSync(key4))) // Check key 4 now gone
+      .flatMap(_ => notExistsSync(key4).assert) // Check key 4 now gone
   }
 
   def deleteRowBatcher(
