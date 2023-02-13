@@ -23,7 +23,7 @@ import cats.effect.std.{Dispatcher, Semaphore}
 import cats.syntax.all._
 import com.google.api.core.{ApiFuture, ApiFutureCallback, ApiFutures, SettableApiFuture}
 import com.google.api.gax.batching.Batcher
-import com.google.api.gax.rpc.ServerStream
+import com.google.api.gax.rpc.{ResponseObserver, ServerStream}
 import com.google.common.util.concurrent.MoreExecutors
 import fs2.Stream
 
@@ -94,10 +94,25 @@ object FunctionalGax {
       chunkSize: Int
   ): Stream[F, A] =
     for {
-      ss <- Stream.eval(serverStream)
+      ss <- Stream.bracketCase(serverStream) {
+        case (stream, Resource.ExitCase.Canceled) => Sync[F].delay(stream.cancel())
+        case _ => Sync[F].unit
+      }
       iterator <- Stream.eval(Sync[F].delay(ss.iterator().asScala))
-      item <- Stream.fromBlockingIterator(iterator, chunkSize)
+      item <- Stream.fromIterator(iterator, chunkSize, Sync.Type.InterruptibleOnce)
     } yield item
+
+  /** Create a [[fs2.Stream]] wrapping a [[com.google.api.gax.rpc.ResponseObserver]]
+    *
+    * @param listen
+    *   function taking a [[com.google.api.gax.rpc.ResponseObserver]] which writes to the [[fs2.Stream]].
+    * @param chunkSize
+    *   the maximum size of chunks in the output stream.
+    */
+  def convertObservable[F[_]: Async, A](
+      listen: ResponseObserver[A] => F[Unit],
+      chunkSize: Int
+  ): Stream[F, A] = ResponseStream.stream[F, A](listen, chunkSize)
 
   /** Convert a [[com.google.api.gax.batching.Batcher]] into a functional equivalent, represented as a
     * [[cats.data.Kleisli Kleisli]].
