@@ -22,6 +22,7 @@ import cats.syntax.all._
 import com.google.api.gax.rpc.{ResponseObserver, StreamController}
 import fs2.Stream
 
+//TODO: tests
 private[gax] object ResponseStream {
 
   def stream[F[_]: Async, A](
@@ -59,7 +60,9 @@ private[gax] object ResponseStream {
       c <- Stream.eval(controller.get)
       req = Sync[F].delay(c.request(chunkSize))
       items <- Stream
-        .evalSeq(req *> queue.tryTakeN(Some(chunkSize)))
+        .evalSeq(req *> queue.take.product(queue.tryTakeN(Some(chunkSize - 1))).map { case (hd, tl) =>
+          hd +: tl
+        })
         .repeat
         .unNoneTerminate
         .interruptWhen(err.get.map(_.asLeft[Unit]))
